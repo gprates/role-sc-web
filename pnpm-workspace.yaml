@@ -1,0 +1,4 @@
+# esbuild precisa rodar o script de pós-instalação para baixar o binário
+# nativo da plataforma. Sem isso o Vite não builda.
+allowBuilds:
+  esbuild: true

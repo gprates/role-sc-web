@@ -1,0 +1,112 @@
+/**
+ * Design tokens do Rolê SC — tradução direta de src/theme/{colors,spacing,
+ * typography}.ts do app mobile.
+ *
+ * Os valores de spacing/radius vêm do mobile em px (densidade-independente no
+ * Android). Na web mantemos os mesmos números em px: 1dp ≈ 1px em telas
+ * padrão, e é o que preserva a proporção visual entre as duas plataformas.
+ */
+:root {
+  /* --- Cores ------------------------------------------------------------ */
+  --primary: #1e88e5;
+  --primary-dark: #0a65c1;
+  --primary-light: #5eb3f2;
+
+  --gradient-primary: linear-gradient(90deg, #0a65c1 0%, #5eb3f2 100%);
+  --gradient-primary-diag: linear-gradient(135deg, #0a65c1 0%, #5eb3f2 100%);
+  --gradient-background: linear-gradient(180deg, #f0f9ff 0%, #dbeafe 100%);
+  --gradient-avatar: linear-gradient(135deg, #1e88e5 0%, #60a5fa 100%);
+
+  --background: #f0f9ff;
+  --surface: #ffffff;
+  --surface-muted: #e6f4fb;
+
+  --text-primary: #001e3c;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --text-on-primary: #ffffff;
+
+  --border: #dbeafe;
+  --border-strong: #bfdbfe;
+
+  --chip-bg: #dbeafe;
+  --chip-text: #1e3a8a;
+  --chip-disabled-bg: #f1f5f9;
+  --chip-disabled-text: #94a3b8;
+
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --info: #0ea5e9;
+  --heart: #ef4444;
+
+  --shadow-color: rgba(15, 23, 42, 0.08);
+  --overlay: rgba(15, 23, 42, 0.45);
+
+  /* --- Sombras (equivalentes aos shadowRadius do RN) -------------------- */
+  --shadow-sm: 0 2px 8px var(--shadow-color);
+  --shadow-md: 0 4px 12px var(--shadow-color);
+  --shadow-lg: 0 6px 16px var(--shadow-color);
+  --shadow-xl: 0 8px 20px var(--shadow-color);
+
+  /* --- Espaçamento ------------------------------------------------------ */
+  --space-xxs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 20px;
+  --space-xl: 24px;
+  --space-xxl: 32px;
+  --space-xxxl: 40px;
+
+  /* --- Raios ------------------------------------------------------------ */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-xxl: 28px;
+  --radius-pill: 999px;
+
+  /* --- Tipografia ------------------------------------------------------- */
+  --font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, 'Noto Sans', sans-serif;
+
+  --fs-display: 26px;
+  --lh-display: 32px;
+  --fs-title: 20px;
+  --lh-title: 26px;
+  --fs-subtitle: 16px;
+  --lh-subtitle: 22px;
+  --fs-body: 15px;
+  --lh-body: 22px;
+  --fs-caption: 13px;
+  --lh-caption: 18px;
+  --fs-micro: 11px;
+  --lh-micro: 14px;
+
+  /* --- Layout ----------------------------------------------------------- */
+  /* Largura da coluna de conteúdo em telas grandes. */
+  --content-max: 1180px;
+  /* Largura dos cards de formulário (login, cadastro, etc.). */
+  --form-max: 440px;
+  /* Altura reservada para a tab bar flutuante no mobile. */
+  --tabbar-height: 76px;
+  /* Altura do header fixo no desktop. */
+  --header-height: 68px;
+}
+
+/**
+ * Em telas maiores a tipografia sobe um degrau. É a única concessão de
+ * "proporção" na escala tipográfica — o resto do design system é idêntico.
+ */
+@media (min-width: 768px) {
+  :root {
+    --fs-display: 30px;
+    --lh-display: 38px;
+    --fs-title: 22px;
+    --lh-title: 28px;
+    --fs-body: 16px;
+    --lh-body: 24px;
+  }
+}
