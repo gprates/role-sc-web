@@ -21,9 +21,8 @@ import AppIcon, { type IconName } from './AppIcon.vue';
  *     como o da prefeitura de Itapema respondem 404 sob essa rajada e voltam
  *     a servir a mesma URL normalmente segundos depois.
  *
- * Por isso a falha não cai direto no placeholder: tentamos de novo até duas
- * vezes, com espera crescente e um jitter aleatório para as capas não
- * repetirem a rajada em uníssono. Só depois disso desistimos.
+ * Por isso a falha não cai direto no placeholder: há UMA retentativa curta
+ * antes de desistir (ver `MAX_RETRIES` abaixo).
  */
 const props = withDefaults(
   defineProps<{
@@ -37,7 +36,23 @@ const props = withDefaults(
   { ratio: '16 / 10', loading: 'lazy' },
 );
 
-const MAX_RETRIES = 2;
+/**
+ * UMA retentativa, curta.
+ *
+ * O objetivo aqui não é insistir até vencer: é absorver a rajada. A grade pede
+ * as imagens de uma página inteira quase ao mesmo tempo, e servidores como o da
+ * prefeitura de Itapema respondem erro sob essa carga mesmo com a imagem
+ * existindo. Uma segunda chamada, logo depois, quase sempre já pega o servidor
+ * livre.
+ *
+ * Antes eram duas tentativas com 600ms e 1200ms de espera: no pior caso o card
+ * ficava mais de dois segundos sem capa nem placeholder, o que lia como
+ * travamento. Com 250ms e uma tentativa só, o placeholder aparece rápido
+ * quando a imagem realmente não existe, e a recuperação continua funcionando
+ * para o caso que importa.
+ */
+const MAX_RETRIES = 1;
+const RETRY_DELAY_MS = 250;
 
 const failed = ref(false);
 const attempt = ref(0);
@@ -65,8 +80,8 @@ const onError = () => {
     failed.value = true;
     return;
   }
-  // 600ms, depois 1200ms, ±300ms de jitter.
-  const delay = 600 * 2 ** attempt.value + Math.random() * 300;
+  // Jitter para as capas da mesma fileira não repetirem a rajada em uníssono.
+  const delay = RETRY_DELAY_MS + Math.random() * 150;
   clearRetry();
   retryTimer = window.setTimeout(() => {
     attempt.value += 1;

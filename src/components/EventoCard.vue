@@ -58,9 +58,9 @@ const rotaComentarios = computed(() => ({
 const handleShare = async () => {
   const result = await compartilharEvento(props.evento);
   if (result === 'copied') {
-    toast.success('Link copiado', 'O link do evento foi copiado para a área de transferência.');
-  } else if (result === 'failed') {
-    toast.error('Não foi possível compartilhar', 'Tente novamente pelo detalhe do evento.');
+    toast.success('Copiado!');
+  } else {
+    toast.error('Não foi possível copiar', 'Seu navegador bloqueou o acesso à área de transferência.');
   }
 };
 </script>

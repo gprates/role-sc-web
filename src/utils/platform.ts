@@ -2,38 +2,41 @@
  * Equivalentes web das APIs nativas usadas pelo app mobile.
  */
 
-export type ShareResult = 'shared' | 'copied' | 'failed';
+export type CopyResult = 'copied' | 'failed';
 
 /**
- * Equivalente ao `Share.share` do React Native.
+ * Copia texto para a área de transferência.
  *
- * A Web Share API existe em praticamente todo mobile e no Safari, mas ainda
- * falta no Firefox e no Chrome desktop — nesses casos copiamos o link para a
- * área de transferência, que é o gesto que o usuário ia fazer de qualquer jeito.
- *
- * Só funciona em contexto seguro (HTTPS ou localhost).
+ * `navigator.clipboard` só existe em contexto seguro (HTTPS ou localhost) e
+ * pode ser negado por permissão. O fallback com `execCommand('copy')` é
+ * obsoleto, mas continua funcionando em todos os navegadores atuais e é a
+ * diferença entre o usuário sair com o texto na mão ou com um aviso de erro.
  */
-export const shareOrCopy = async (payload: {
-  title: string;
-  text: string;
-  url: string;
-}): Promise<ShareResult> => {
-  if (navigator.share) {
+export const copyToClipboard = async (text: string): Promise<CopyResult> => {
+  if (navigator.clipboard?.writeText) {
     try {
-      await navigator.share(payload);
-      return 'shared';
+      await navigator.clipboard.writeText(text);
+      return 'copied';
     } catch (err) {
-      // AbortError = o usuário fechou a folha de compartilhamento. Não é falha.
-      if (err instanceof DOMException && err.name === 'AbortError') return 'shared';
-      console.warn('[share] navigator.share falhou, tentando clipboard', err);
+      console.warn('[share] clipboard indisponível, tentando execCommand', err);
     }
   }
 
   try {
-    await navigator.clipboard.writeText(`${payload.text}\n${payload.url}`);
-    return 'copied';
+    const area = document.createElement('textarea');
+    area.value = text;
+    // Fora da tela e não-editável: o campo não pode piscar na página nem
+    // abrir o teclado no celular durante o instante em que existe.
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.top = '-9999px';
+    document.body.appendChild(area);
+    area.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(area);
+    return ok ? 'copied' : 'failed';
   } catch (err) {
-    console.warn('[share] clipboard indisponível', err);
+    console.warn('[share] execCommand falhou', err);
     return 'failed';
   }
 };

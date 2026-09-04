@@ -72,9 +72,9 @@ const handleShare = async () => {
   if (!evento.value) return;
   const result = await compartilharEvento(evento.value);
   if (result === 'copied') {
-    toast.success('Link copiado', 'O link do evento foi copiado para a área de transferência.');
-  } else if (result === 'failed') {
-    toast.error('Não foi possível compartilhar', 'Copie o endereço da publicação original.');
+    toast.success('Copiado!');
+  } else {
+    toast.error('Não foi possível copiar', 'Seu navegador bloqueou o acesso à área de transferência.');
   }
 };
 
@@ -202,7 +202,7 @@ const infoRows = computed(() => {
               :size="22"
               :color="favorito ? 'var(--heart)' : undefined"
             />
-            <span class="t-micro">Favoritar</span>
+            <span class="t-caption-bold">Favoritar</span>
           </button>
 
           <button
@@ -212,7 +212,7 @@ const infoRows = computed(() => {
             @click="comentariosOpen = true"
           >
             <AppIcon name="chatbubble-outline" :size="22" />
-            <span class="t-micro">{{ comentarios.total.value }}</span>
+            <span class="t-caption-bold">{{ comentarios.total.value }}</span>
           </button>
 
           <button
@@ -222,7 +222,7 @@ const infoRows = computed(() => {
             @click="handleShare"
           >
             <AppIcon name="share-social-outline" :size="22" />
-            <span class="t-micro">Compartilhar</span>
+            <span class="t-caption-bold">Compartilhar</span>
           </button>
         </div>
       </div>
@@ -416,13 +416,15 @@ const infoRows = computed(() => {
   padding-block: var(--space-sm);
 }
 
+/* Linha, não coluna: o rótulo (e o contador de comentários) fica à DIREITA do
+   ícone, como na ActionBar do app e como no rodapé do EventoCard. Empilhado,
+   o número ficava embaixo do balão e lia como legenda, não como contagem. */
 .actionbar__item {
   display: flex;
   flex: 1;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: var(--space-xs);
   padding-block: var(--space-xs);
   color: var(--text-secondary);
   transition: color 0.15s ease;
