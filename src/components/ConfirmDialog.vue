@@ -64,7 +64,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 .backdrop {
   position: fixed;
   inset: 0;
-  z-index: 70;
+  z-index: var(--z-dialog);
   display: flex;
   align-items: center;
   justify-content: center;

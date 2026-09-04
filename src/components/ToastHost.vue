@@ -51,7 +51,7 @@ const ICONS: Record<ToastVariant, IconName> = {
 <style scoped>
 .toasts {
   position: fixed;
-  z-index: 60;
+  z-index: var(--z-toast);
   left: var(--space-md);
   right: var(--space-md);
   /* No mobile fica acima da tab bar flutuante para não cobri-la. */

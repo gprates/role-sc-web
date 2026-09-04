@@ -23,12 +23,14 @@ import IconCalendarOutline from '~icons/ion/calendar-outline';
 import IconCamera from '~icons/ion/camera';
 import IconChatbubbleOutline from '~icons/ion/chatbubble-outline';
 import IconCheckbox from '~icons/ion/checkbox';
+import IconCheckmark from '~icons/ion/checkmark';
 import IconCheckmarkCircle from '~icons/ion/checkmark-circle';
 import IconCheckmarkCircleOutline from '~icons/ion/checkmark-circle-outline';
 import IconChevronDown from '~icons/ion/chevron-down';
 import IconChevronForward from '~icons/ion/chevron-forward';
 import IconClose from '~icons/ion/close';
 import IconCloseCircle from '~icons/ion/close-circle';
+import IconCloudOfflineOutline from '~icons/ion/cloud-offline-outline';
 import IconColorPaletteOutline from '~icons/ion/color-palette-outline';
 import IconCreateOutline from '~icons/ion/create-outline';
 import IconEllipseOutline from '~icons/ion/ellipse-outline';
@@ -49,6 +51,7 @@ import IconMailOutline from '~icons/ion/mail-outline';
 import IconMedkitOutline from '~icons/ion/medkit-outline';
 import IconOpenOutline from '~icons/ion/open-outline';
 import IconOptionsOutline from '~icons/ion/options-outline';
+import IconPencil from '~icons/ion/pencil';
 import IconPersonOutline from '~icons/ion/person-outline';
 import IconPricetagOutline from '~icons/ion/pricetag-outline';
 import IconRadioButtonOff from '~icons/ion/radio-button-off';
@@ -60,6 +63,7 @@ import IconSearch from '~icons/ion/search';
 import IconSend from '~icons/ion/send';
 import IconShareSocialOutline from '~icons/ion/share-social-outline';
 import IconSquareOutline from '~icons/ion/square-outline';
+import IconTrashOutline from '~icons/ion/trash-outline';
 import IconSunnyOutline from '~icons/ion/sunny-outline';
 import IconTimeOutline from '~icons/ion/time-outline';
 
@@ -74,12 +78,14 @@ const ICONS = {
   camera: IconCamera,
   'chatbubble-outline': IconChatbubbleOutline,
   checkbox: IconCheckbox,
+  checkmark: IconCheckmark,
   'checkmark-circle': IconCheckmarkCircle,
   'checkmark-circle-outline': IconCheckmarkCircleOutline,
   'chevron-down': IconChevronDown,
   'chevron-forward': IconChevronForward,
   close: IconClose,
   'close-circle': IconCloseCircle,
+  'cloud-offline-outline': IconCloudOfflineOutline,
   'color-palette-outline': IconColorPaletteOutline,
   'create-outline': IconCreateOutline,
   'ellipse-outline': IconEllipseOutline,
@@ -100,6 +106,7 @@ const ICONS = {
   'medkit-outline': IconMedkitOutline,
   'open-outline': IconOpenOutline,
   'options-outline': IconOptionsOutline,
+  pencil: IconPencil,
   'person-outline': IconPersonOutline,
   'pricetag-outline': IconPricetagOutline,
   'radio-button-off': IconRadioButtonOff,
@@ -111,6 +118,7 @@ const ICONS = {
   send: IconSend,
   'share-social-outline': IconShareSocialOutline,
   'square-outline': IconSquareOutline,
+  'trash-outline': IconTrashOutline,
   'sunny-outline': IconSunnyOutline,
   'time-outline': IconTimeOutline,
 } satisfies Record<string, Component>;

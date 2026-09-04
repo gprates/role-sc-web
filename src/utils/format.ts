@@ -98,3 +98,30 @@ export const toBackendDate = (d: Date): string => {
   const yy = d.getFullYear();
   return `${yy}-${mm}-${dd}`;
 };
+
+/**
+ * "agora", "há 5 min", "há 3 h", "há 2 d", "há 3 sem" — e, passado um mês,
+ * a data absoluta. Usado no cabeçalho de cada comentário.
+ */
+export const formatRelativeTime = (iso: string | null | undefined): string => {
+  const d = parseIso(iso);
+  if (!d) return '';
+
+  const segundos = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
+
+  if (segundos < 60) return 'agora';
+
+  const minutos = Math.floor(segundos / 60);
+  if (minutos < 60) return `há ${minutos} min`;
+
+  const horas = Math.floor(minutos / 60);
+  if (horas < 24) return `há ${horas} h`;
+
+  const dias = Math.floor(horas / 24);
+  if (dias < 7) return `há ${dias} d`;
+
+  const semanas = Math.floor(dias / 7);
+  if (semanas < 4) return `há ${semanas} sem`;
+
+  return formatShortDate(iso);
+};

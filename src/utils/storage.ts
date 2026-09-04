@@ -3,8 +3,10 @@
  *
  * A interface é assíncrona de propósito: no app mobile a mesma camada usa
  * AsyncStorage (que é async por natureza). Manter as duas assinaturas iguais
- * permite que `favoritos.service.ts` e o store de auth sejam praticamente
- * idênticos nas duas plataformas.
+ * permite que o store de auth seja praticamente idêntico nas duas plataformas.
+ *
+ * Hoje só a sessão passa por aqui. Os favoritos também passavam, até virarem
+ * server-side — ver `favoritos.service.ts`.
  *
  * Qualquer falha (modo privativo, quota estourada, JSON corrompido) resolve
  * para `null` em vez de estourar — o site não pode quebrar por causa de storage.

@@ -1,40 +1,43 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, onMounted, ref, toRef, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 import AppIcon, { type IconName } from '@/components/AppIcon.vue';
 import AppSpinner from '@/components/AppSpinner.vue';
 import CategoriaBadge from '@/components/CategoriaBadge.vue';
 import ComentariosModal from '@/components/ComentariosModal.vue';
 import EventoCover from '@/components/EventoCover.vue';
+import { useComentarios } from '@/composables/useComentarios';
 import { useToast } from '@/composables/useToast';
 import { extractErrorMessage } from '@/services/api';
 import { eventoService } from '@/services/evento.service';
 import { useFavoritosStore } from '@/stores/favoritos.store';
 import type { Evento } from '@/types';
 import { formatLongDate, formatShortDate } from '@/utils/format';
-import { openExternal, shareOrCopy } from '@/utils/platform';
+import { openExternal } from '@/utils/platform';
+import { compartilharEvento } from '@/utils/share';
 
-/**
- * T08 — Detalhe do evento (porte de DetalheEventoScreen.tsx).
- *
- * Curtidas, comentários e "eu vou" continuam sem endpoint (RF30-32): os botões
- * seguem como stub com aviso "Em breve", exatamente como no app.
- */
+/** T08 — Detalhe do evento (porte de DetalheEventoScreen.tsx). */
 const props = defineProps<{ id: string }>();
 
 const router = useRouter();
+const route = useRoute();
 const toast = useToast();
 const favoritos = useFavoritosStore();
-
-// Números mockados — não há endpoint de curtidas/comentários ainda.
-const MOCK_LIKES = 187;
-const MOCK_COMENTARIOS = 12;
 
 const evento = ref<Evento | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
-const comentariosOpen = ref(false);
+
+// Já nasce aberto quando a navegação veio do ícone de comentário do card,
+// que aponta para `?comentarios=1`.
+const comentariosOpen = ref(route.query.comentarios === '1');
+
+/**
+ * Montado aqui, e não dentro do modal, porque o contador da barra de ações
+ * precisa do total mesmo com o modal fechado.
+ */
+const comentarios = useComentarios(toRef(props, 'id'));
 
 const loadEvento = async () => {
   loading.value = true;
@@ -56,26 +59,23 @@ const favorito = computed(() =>
   evento.value ? favoritos.isFavorito(evento.value._id) : false,
 );
 
-const handleToggleFavorito = () => {
-  if (evento.value) void favoritos.toggle(evento.value);
+const handleToggleFavorito = async () => {
+  if (!evento.value) return;
+  try {
+    await favoritos.toggle(evento.value);
+  } catch (err) {
+    toast.error('Favoritos', extractErrorMessage(err));
+  }
 };
 
 const handleShare = async () => {
   if (!evento.value) return;
-  const result = await shareOrCopy({
-    title: evento.value.titulo,
-    text: `${evento.value.titulo}\n\n${evento.value.descricao ?? ''}`,
-    url: evento.value.url,
-  });
+  const result = await compartilharEvento(evento.value);
   if (result === 'copied') {
     toast.success('Link copiado', 'O link do evento foi copiado para a área de transferência.');
   } else if (result === 'failed') {
     toast.error('Não foi possível compartilhar', 'Copie o endereço da publicação original.');
   }
-};
-
-const notifyInProgress = () => {
-  toast.info('Em breve', 'Essa funcionalidade estará disponível em breve.');
 };
 
 /** Linhas do cartão de informações, montadas só com o que o evento tem. */
@@ -177,22 +177,42 @@ const infoRows = computed(() => {
         </aside>
       </div>
 
-      <!-- Barra de ações: fixa no rodapé no mobile, no fluxo do conteúdo no desktop. -->
+      <!--
+        Barra de ações: favoritar, comentar, compartilhar — nessa ordem, igual
+        ao app. Fixa no rodapé no mobile, no fluxo do conteúdo no desktop.
+
+        O coração é o MESMO gesto do coração do EventoCard (favoritar), com o
+        mesmo ícone e a mesma cor. Antes esta barra tinha cinco botões, três
+        deles falsos: um coração de "curtida" mockada em 187, um "Eu vou" que
+        só abria um toast de "em breve", e um marcador de página para favoritar
+        — ou seja, dois símbolos diferentes para a ideia de salvar.
+      -->
       <div class="actionbar">
         <div class="actionbar__inner content-shell">
-          <button type="button" class="actionbar__item" @click="notifyInProgress">
-            <AppIcon name="heart-outline" :size="22" />
-            <span class="t-caption">{{ MOCK_LIKES }}</span>
+          <button
+            type="button"
+            class="actionbar__item"
+            :class="{ 'actionbar__item--favorito': favorito }"
+            :aria-pressed="favorito"
+            :aria-label="favorito ? 'Remover dos favoritos' : 'Adicionar aos favoritos'"
+            @click="handleToggleFavorito"
+          >
+            <AppIcon
+              :name="favorito ? 'heart' : 'heart-outline'"
+              :size="22"
+              :color="favorito ? 'var(--heart)' : undefined"
+            />
+            <span class="t-micro">Favoritar</span>
           </button>
 
-          <button type="button" class="actionbar__item" @click="comentariosOpen = true">
+          <button
+            type="button"
+            class="actionbar__item"
+            aria-label="Ver comentários"
+            @click="comentariosOpen = true"
+          >
             <AppIcon name="chatbubble-outline" :size="22" />
-            <span class="t-caption">{{ MOCK_COMENTARIOS }}</span>
-          </button>
-
-          <button type="button" class="actionbar__item" @click="notifyInProgress">
-            <AppIcon name="checkmark-circle-outline" :size="22" />
-            <span class="t-micro">Eu vou</span>
+            <span class="t-micro">{{ comentarios.total.value }}</span>
           </button>
 
           <button
@@ -202,22 +222,26 @@ const infoRows = computed(() => {
             @click="handleShare"
           >
             <AppIcon name="share-social-outline" :size="22" />
-          </button>
-
-          <button
-            type="button"
-            class="actionbar__item"
-            :class="{ 'actionbar__item--active': favorito }"
-            :aria-pressed="favorito"
-            :aria-label="favorito ? 'Remover dos favoritos' : 'Salvar nos favoritos'"
-            @click="handleToggleFavorito"
-          >
-            <AppIcon :name="favorito ? 'bookmark' : 'bookmark-outline'" :size="22" />
+            <span class="t-micro">Compartilhar</span>
           </button>
         </div>
       </div>
 
-      <ComentariosModal :open="comentariosOpen" @close="comentariosOpen = false" />
+      <ComentariosModal
+        :open="comentariosOpen"
+        :comentarios="comentarios.comentarios.value"
+        :loading="comentarios.loading.value"
+        :loading-more="comentarios.loadingMore.value"
+        :error="comentarios.error.value"
+        :total="comentarios.total.value"
+        :has-more="comentarios.hasMore.value"
+        :on-load-more="comentarios.loadMore"
+        :on-criar="comentarios.criar"
+        :on-editar="comentarios.editar"
+        :on-excluir="comentarios.excluir"
+        :on-toggle-curtida="comentarios.toggleCurtida"
+        @close="comentariosOpen = false"
+      />
     </template>
   </div>
 </template>
@@ -382,7 +406,7 @@ const infoRows = computed(() => {
   left: 0;
   right: 0;
   bottom: var(--tabbar-height);
-  z-index: 30;
+  z-index: var(--z-actionbar);
   background: var(--surface);
   border-top: 1px solid var(--border);
 }
@@ -408,8 +432,11 @@ const infoRows = computed(() => {
   color: var(--primary);
 }
 
-.actionbar__item--active {
-  color: var(--primary);
+/* Só o rótulo muda de cor: o ícone já recebe `--heart` pela prop `color`, e
+   deixar os dois vermelhos pesaria demais na barra. */
+.actionbar__item--favorito,
+.actionbar__item--favorito:hover {
+  color: var(--heart);
 }
 
 /* ==========================================================================

@@ -11,6 +11,8 @@ import PeriodoFilterModal from '@/components/PeriodoFilterModal.vue';
 import StatusFilterModal from '@/components/StatusFilterModal.vue';
 import { useDebounce } from '@/composables/useDebounce';
 import { useEventos } from '@/composables/useEventos';
+import { useToast } from '@/composables/useToast';
+import { extractErrorMessage } from '@/services/api';
 import { useAuthStore } from '@/stores/auth.store';
 import { useFavoritosStore } from '@/stores/favoritos.store';
 import type { Evento, EventosFilter, EventoStatus } from '@/types';
@@ -34,6 +36,7 @@ import { toBackendDate } from '@/utils/format';
  */
 const auth = useAuthStore();
 const favoritos = useFavoritosStore();
+const toast = useToast();
 
 const search = ref('');
 const debouncedSearch = useDebounce(search, 400);
@@ -118,8 +121,13 @@ const applyPeriodo = (inicio: Date | null, fim: Date | null) => {
   dataFim.value = fim;
 };
 
-const onToggleFavorito = (evento: Evento) => {
-  void favoritos.toggle(evento);
+const onToggleFavorito = async (evento: Evento) => {
+  try {
+    await favoritos.toggle(evento);
+  } catch (err) {
+    // O store já desfez o otimismo; aqui só avisamos por que o coração voltou.
+    toast.error('Favoritos', extractErrorMessage(err));
+  }
 };
 
 const hasMore = computed(() => {

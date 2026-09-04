@@ -155,7 +155,7 @@ const inicial = computed(() => auth.user?.nome?.[0]?.toUpperCase() ?? '?');
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 40;
+  z-index: var(--z-header);
   padding: var(--space-xs) var(--space-md)
     max(var(--space-xs), env(safe-area-inset-bottom));
 }
@@ -219,7 +219,7 @@ const inicial = computed(() => auth.user?.nome?.[0]?.toUpperCase() ?? '?');
   .header {
     position: sticky;
     top: 0;
-    z-index: 40;
+    z-index: var(--z-header);
     display: block;
     height: var(--header-height);
     background: color-mix(in srgb, var(--surface) 82%, transparent);

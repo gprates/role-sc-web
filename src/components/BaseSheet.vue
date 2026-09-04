@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
 
+import { useConfirm } from '@/composables/useConfirm';
+
 import AppIcon from './AppIcon.vue';
 
 /**
@@ -20,12 +22,20 @@ const emit = defineEmits<{ close: [] }>();
 const sheet = ref<HTMLElement | null>(null);
 const titleId = `sheet-title-${Math.random().toString(36).slice(2, 9)}`;
 
+/**
+ * O ConfirmDialog pode abrir POR CIMA de um sheet (excluir um comentário, por
+ * exemplo). Os dois escutam Esc no window, e o sheet registrou primeiro — sem
+ * esta checagem um único Esc responderia "cancelar" ao diálogo E fecharia o
+ * sheet atrás dele, levando embora a lista que o usuário estava lendo.
+ */
+const { pending: confirmPending } = useConfirm();
+
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';
 
 const onKeydown = (event: KeyboardEvent) => {
   if (event.key === 'Escape') {
-    emit('close');
+    if (!confirmPending.value) emit('close');
     return;
   }
 
@@ -117,7 +127,7 @@ onBeforeUnmount(() => {
 .backdrop {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: var(--z-sheet);
   display: flex;
   align-items: flex-end;
   justify-content: center;

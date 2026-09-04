@@ -85,6 +85,23 @@
   --fs-micro: 11px;
   --lh-micro: 14px;
 
+  /**
+   * --- Camadas ----------------------------------------------------------
+   * A ordem importa e é fácil de errar quando cada componente escolhe o
+   * próprio número: o ConfirmDialog nasceu abaixo dos sheets, então a
+   * confirmação de "excluir comentário" abria ATRÁS do sheet de comentários —
+   * invisível, sem clique, e travando quem a chamou esperando a resposta.
+   *
+   * A regra: o que interrompe fica acima do que apenas cobre, e o aviso
+   * (toast) fica acima de tudo, porque é o retorno de uma ação que pode ter
+   * partido de qualquer uma das camadas abaixo.
+   */
+  --z-actionbar: 30;
+  --z-header: 40;
+  --z-sheet: 80;
+  --z-dialog: 90;
+  --z-toast: 100;
+
   /* --- Layout ----------------------------------------------------------- */
   /* Largura da coluna de conteúdo em telas grandes. */
   --content-max: 1180px;

@@ -17,6 +17,12 @@ export interface Evento {
   url: string;
   publishedAt: string;
   processedAt: string;
+  /**
+   * Anexado pelas agregações de listagem (GET /eventos e GET /favoritos), para
+   * o contador do card. Ausente em GET /eventos/:id, onde o número real vem do
+   * `useComentarios` da tela de detalhe.
+   */
+  totalComentarios?: number;
 }
 
 export interface Pagination {

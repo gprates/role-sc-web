@@ -48,7 +48,8 @@ export type Categoria = (typeof CATEGORIAS)[number];
 export const STORAGE_KEYS = {
   token: '@rolesc/token',
   user: '@rolesc/user',
-  favoritos: '@rolesc/favoritos',
+  // `favoritos` saiu daqui: eles agora são do usuário e vivem no backend
+  // (GET/POST/DELETE /favoritos), não mais no localStorage do navegador.
 } as const;
 
 export const APP_VERSION = '1.0.0';
