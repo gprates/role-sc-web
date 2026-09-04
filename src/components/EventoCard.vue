@@ -162,13 +162,14 @@ const handleShare = async () => {
   border-radius: var(--radius-xl);
   overflow: hidden;
   box-shadow: var(--shadow-lg);
-  transition:
-    transform 0.16s ease,
-    box-shadow 0.16s ease;
+  transition: box-shadow 0.16s ease;
 }
 
+/* Só a sombra reage ao hover. O card também subia 2px, mas numa grade densa
+   isso faz o cursor sair de cima do card ao passar perto da borda — ele sobe,
+   perde o hover, desce, reganha: o card "treme" enquanto o mouse atravessa a
+   lista. A sombra dá o mesmo retorno sem mexer na geometria. */
 .card:hover {
-  transform: translateY(-2px);
   box-shadow: var(--shadow-xl);
 }
 
