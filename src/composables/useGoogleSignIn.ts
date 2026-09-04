@@ -1,4 +1,5 @@
 import { ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 import { useToast } from '@/composables/useToast';
 import { extractErrorMessage } from '@/services/api';
@@ -34,6 +35,20 @@ interface GoogleCredentialResponse {
   credential?: string;
 }
 
+/**
+ * O objeto que o GIS passa ao `momentListener` do `prompt()`.
+ *
+ * Todos os métodos são opcionais de propósito: desde a migração do One Tap
+ * para FedCM, `isNotDisplayed()` e `isSkippedMoment()` foram descontinuados e
+ * chegam a lançar exceção em navegadores com FedCM ligado. Só
+ * `isDismissedMoment()` continua confiável — por isso a checagem é defensiva.
+ */
+interface GooglePromptMoment {
+  isDismissedMoment?: () => boolean;
+  isNotDisplayed?: () => boolean;
+  isSkippedMoment?: () => boolean;
+}
+
 interface GoogleAccountsId {
   initialize: (config: {
     client_id: string;
@@ -42,7 +57,7 @@ interface GoogleAccountsId {
     cancel_on_tap_outside?: boolean;
     use_fedcm_for_prompt?: boolean;
   }) => void;
-  prompt: () => void;
+  prompt: (momentListener?: (moment: GooglePromptMoment) => void) => void;
   cancel: () => void;
 }
 
@@ -78,6 +93,8 @@ const loadGsiScript = (): Promise<void> => {
 export const useGoogleSignIn = () => {
   const auth = useAuthStore();
   const toast = useToast();
+  const router = useRouter();
+  const route = useRoute();
   const loading = ref(false);
 
   /** True quando não há client ID — a UI esconde o botão nesse caso. */
@@ -100,19 +117,53 @@ export const useGoogleSignIn = () => {
       if (!gsi) throw new Error('Google Sign-In indisponível.');
 
       const idToken = await new Promise<string | null>((resolve) => {
+        let settled = false;
+        const finish = (value: string | null) => {
+          if (settled) return;
+          settled = true;
+          resolve(value);
+        };
+
         gsi.initialize({
           client_id: WEB_CLIENT_ID,
-          callback: (response) => resolve(response.credential ?? null),
+          callback: (response) => finish(response.credential ?? null),
           auto_select: false,
           cancel_on_tap_outside: true,
         });
-        gsi.prompt();
+
+        /**
+         * O `callback` do GIS só dispara quando o usuário CONCLUI o login. Se
+         * ele fechar o prompt, nada acontece — e sem o momentListener abaixo a
+         * promise nunca resolveria, deixando o botão travado no spinner até o
+         * F5. O listener nos avisa da desistência para liberarmos a UI.
+         */
+        gsi.prompt((moment) => {
+          try {
+            if (moment.isDismissedMoment?.()) finish(null);
+          } catch {
+            // FedCM: os métodos de inspeção podem lançar. Ignorar é seguro —
+            // no pior caso o usuário clica no botão de novo.
+          }
+        });
       });
 
       // Usuário fechou o prompt do Google — não é erro, não incomoda com toast.
       if (!idToken) return;
 
       await auth.signInWithGoogle(idToken);
+
+      /**
+       * Navegar faz parte do login, e é aqui que ele precisa acontecer: o
+       * clique no botão chama esta função diretamente, então a view não tem
+       * onde encaixar o redirect como faz no fluxo de email/senha. Sem isto, a
+       * sessão era gravada e o usuário continuava parado na tela de login —
+       * só o F5 o levava adiante, empurrado pelo guard de `guestOnly`.
+       *
+       * `replace` (e não `push`) para o login não voltar no botão "voltar" do
+       * navegador; `route.query.redirect` retoma o destino que o guard salvou.
+       */
+      const redirect = route.query.redirect;
+      await router.replace(typeof redirect === 'string' ? redirect : { name: 'home' });
     } catch (err) {
       toast.error('Não foi possível entrar', extractErrorMessage(err));
     } finally {
