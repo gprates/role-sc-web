@@ -88,10 +88,19 @@ const data = computed(() =>
 </template>
 
 <style scoped>
+/**
+ * `width/height: 100%` fazem o card preencher a célula da grade. Sem isso ele
+ * encolhe até o conteúdo e dois cards lado a lado terminam em alturas
+ * diferentes — quem tem título de duas linhas, ou local preenchido, fica mais
+ * alto que o vizinho. Com o card esticado, é o `margin-top: auto` do município
+ * que absorve a sobra e mantém o rodapé alinhado entre todos.
+ */
 .card {
   position: relative;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  height: 100%;
   background: var(--surface);
   border-radius: var(--radius-xl);
   overflow: hidden;
@@ -132,9 +141,13 @@ const data = computed(() =>
   padding: var(--space-md);
 }
 
+/* `min-height` de duas linhas: o título é clampado em 2, então reservar o
+   espaço das duas faz as linhas de data/local começarem na mesma altura em
+   todos os cards da mesma fileira, em vez de dançarem conforme o título. */
 .card__title {
   font-size: 18px;
   line-height: 24px;
+  min-height: 48px;
   font-weight: 600;
   color: var(--text-primary);
 }

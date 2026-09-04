@@ -71,6 +71,12 @@ const onToggleFavorito = (evento: Evento) => {
   gap: var(--space-md);
 }
 
+/* Mesma regra da Home: o item da grade estica, o card preenche, e todos os
+   cards de uma fileira terminam na mesma altura. */
+.grid > li {
+  display: flex;
+}
+
 @media (min-width: 640px) {
   .grid {
     grid-template-columns: repeat(2, 1fr);

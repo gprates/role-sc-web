@@ -15,16 +15,20 @@ import { computed } from 'vue';
  */
 import IconAlertCircle from '~icons/ion/alert-circle';
 import IconAlertCircleOutline from '~icons/ion/alert-circle-outline';
+import IconArrowForward from '~icons/ion/arrow-forward';
 import IconArrowBack from '~icons/ion/arrow-back';
 import IconBookmark from '~icons/ion/bookmark';
 import IconBookmarkOutline from '~icons/ion/bookmark-outline';
 import IconCalendarOutline from '~icons/ion/calendar-outline';
 import IconCamera from '~icons/ion/camera';
 import IconChatbubbleOutline from '~icons/ion/chatbubble-outline';
+import IconCheckbox from '~icons/ion/checkbox';
 import IconCheckmarkCircle from '~icons/ion/checkmark-circle';
 import IconCheckmarkCircleOutline from '~icons/ion/checkmark-circle-outline';
+import IconChevronDown from '~icons/ion/chevron-down';
 import IconChevronForward from '~icons/ion/chevron-forward';
 import IconClose from '~icons/ion/close';
+import IconCloseCircle from '~icons/ion/close-circle';
 import IconColorPaletteOutline from '~icons/ion/color-palette-outline';
 import IconCreateOutline from '~icons/ion/create-outline';
 import IconEllipseOutline from '~icons/ion/ellipse-outline';
@@ -46,12 +50,16 @@ import IconMedkitOutline from '~icons/ion/medkit-outline';
 import IconOpenOutline from '~icons/ion/open-outline';
 import IconOptionsOutline from '~icons/ion/options-outline';
 import IconPersonOutline from '~icons/ion/person-outline';
+import IconPricetagOutline from '~icons/ion/pricetag-outline';
+import IconRadioButtonOff from '~icons/ion/radio-button-off';
+import IconRadioButtonOn from '~icons/ion/radio-button-on';
 import IconRefreshOutline from '~icons/ion/refresh-outline';
 import IconRestaurantOutline from '~icons/ion/restaurant-outline';
 import IconSchoolOutline from '~icons/ion/school-outline';
 import IconSearch from '~icons/ion/search';
 import IconSend from '~icons/ion/send';
 import IconShareSocialOutline from '~icons/ion/share-social-outline';
+import IconSquareOutline from '~icons/ion/square-outline';
 import IconSunnyOutline from '~icons/ion/sunny-outline';
 import IconTimeOutline from '~icons/ion/time-outline';
 
@@ -59,15 +67,19 @@ const ICONS = {
   'alert-circle': IconAlertCircle,
   'alert-circle-outline': IconAlertCircleOutline,
   'arrow-back': IconArrowBack,
+  'arrow-forward': IconArrowForward,
   bookmark: IconBookmark,
   'bookmark-outline': IconBookmarkOutline,
   'calendar-outline': IconCalendarOutline,
   camera: IconCamera,
   'chatbubble-outline': IconChatbubbleOutline,
+  checkbox: IconCheckbox,
   'checkmark-circle': IconCheckmarkCircle,
   'checkmark-circle-outline': IconCheckmarkCircleOutline,
+  'chevron-down': IconChevronDown,
   'chevron-forward': IconChevronForward,
   close: IconClose,
+  'close-circle': IconCloseCircle,
   'color-palette-outline': IconColorPaletteOutline,
   'create-outline': IconCreateOutline,
   'ellipse-outline': IconEllipseOutline,
@@ -89,12 +101,16 @@ const ICONS = {
   'open-outline': IconOpenOutline,
   'options-outline': IconOptionsOutline,
   'person-outline': IconPersonOutline,
+  'pricetag-outline': IconPricetagOutline,
+  'radio-button-off': IconRadioButtonOff,
+  'radio-button-on': IconRadioButtonOn,
   'refresh-outline': IconRefreshOutline,
   'restaurant-outline': IconRestaurantOutline,
   'school-outline': IconSchoolOutline,
   search: IconSearch,
   send: IconSend,
   'share-social-outline': IconShareSocialOutline,
+  'square-outline': IconSquareOutline,
   'sunny-outline': IconSunnyOutline,
   'time-outline': IconTimeOutline,
 } satisfies Record<string, Component>;

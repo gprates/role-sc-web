@@ -2,8 +2,13 @@
 import AppIcon, { type IconName } from './AppIcon.vue';
 
 /**
- * Chip de filtro (município, categoria, ações). Quando ativo, recebe o
- * gradiente azul — igual ao `FilterChip.tsx` do mobile.
+ * Chip de filtro (status, município, categoria, período, ações). Quando ativo,
+ * recebe o gradiente azul — igual ao `FilterChip.tsx` do mobile.
+ *
+ * `trailing` desenha o chevron dos chips que abrem um modal. No mobile ele é
+ * passado como `ReactNode`; aqui é um booleano, porque o único trailing que
+ * existe no design é esse — e assim a cor acompanha o estado do chip sozinha,
+ * sem o chamador ter que repetir o ternário de cor em toda chamada.
  */
 const props = withDefaults(
   defineProps<{
@@ -11,8 +16,12 @@ const props = withDefaults(
     active?: boolean;
     disabled?: boolean;
     icon?: IconName;
+    /** Mostra o chevron indicando que o chip abre um seletor. */
+    trailing?: boolean;
+    /** Rótulo acessível quando o texto visível não basta (ex.: "Itajaí +2"). */
+    ariaLabel?: string;
   }>(),
-  { active: false, disabled: false },
+  { active: false, disabled: false, trailing: false },
 );
 
 defineEmits<{ click: [] }>();
@@ -24,11 +33,13 @@ defineEmits<{ click: [] }>();
     class="chip"
     :class="{ 'chip--active': props.active, 'chip--disabled': props.disabled }"
     :disabled="props.disabled"
-    :aria-pressed="props.active"
+    :aria-label="props.ariaLabel"
+    :aria-haspopup="props.trailing ? 'dialog' : undefined"
     @click="$emit('click')"
   >
     <AppIcon v-if="props.icon" :name="props.icon" :size="14" />
-    <span>{{ props.label }}</span>
+    <span class="chip__label">{{ props.label }}</span>
+    <AppIcon v-if="props.trailing" name="chevron-down" :size="14" />
   </button>
 </template>
 
@@ -49,6 +60,14 @@ defineEmits<{ click: [] }>();
     background 0.15s ease,
     color 0.15s ease,
     opacity 0.15s ease;
+}
+
+/* Um município de nome longo ("Balneário Camboriú") não pode esticar o chip a
+   ponto de empurrar o "Limpar" para fora da linha. */
+.chip__label {
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .chip:not(:disabled):hover {

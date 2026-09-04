@@ -1,16 +1,22 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import AppIcon from '@/components/AppIcon.vue';
 import AppSpinner from '@/components/AppSpinner.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import EventoCard from '@/components/EventoCard.vue';
 import FilterChip from '@/components/FilterChip.vue';
+import FilterSelectModal from '@/components/FilterSelectModal.vue';
+import PeriodoFilterModal from '@/components/PeriodoFilterModal.vue';
+import StatusFilterModal from '@/components/StatusFilterModal.vue';
+import { useDebounce } from '@/composables/useDebounce';
 import { useEventos } from '@/composables/useEventos';
 import { useAuthStore } from '@/stores/auth.store';
 import { useFavoritosStore } from '@/stores/favoritos.store';
-import type { Evento, EventosFilter } from '@/types';
+import type { Evento, EventosFilter, EventoStatus } from '@/types';
 import { CATEGORIAS, MUNICIPIOS_FIXOS } from '@/utils/constants';
+import { formatDayMonth } from '@/utils/dateRange';
+import { toBackendDate } from '@/utils/format';
 
 /**
  * T07 — Home / listagem de eventos (porte de HomeScreen.tsx).
@@ -20,51 +26,96 @@ import { CATEGORIAS, MUNICIPIOS_FIXOS } from '@/utils/constants';
  *   · pull-to-refresh          →  botão de atualizar (gesto que não existe no
  *                                 desktop; no mobile o browser já usa o
  *                                 puxão-para-baixo para recarregar a página)
+ *
+ * Os filtros seguem o app: uma linha de chips que abrem sheets de seleção. A
+ * versão anterior espalhava um chip por município e outro por categoria direto
+ * na página — não escala, porque a lista de categorias e de municípios cresce
+ * conforme o crawler cobre novas fontes.
  */
 const auth = useAuthStore();
 const favoritos = useFavoritosStore();
 
 const search = ref('');
-const debouncedSearch = ref('');
-const municipio = ref<string | null>(null);
-const categoria = ref<string | null>(null);
+const debouncedSearch = useDebounce(search, 400);
 
-let debounceTimer: number | null = null;
-watch(search, (value) => {
-  if (debounceTimer !== null) window.clearTimeout(debounceTimer);
-  debounceTimer = window.setTimeout(() => {
-    debouncedSearch.value = value.trim();
-  }, 400);
-});
+const municipio = ref<string[]>([]);
+const categoria = ref<string[]>([]);
+const dataInicio = ref<Date | null>(null);
+const dataFim = ref<Date | null>(null);
+// Padrão "ativos": eventos passados não interessam tanto ao usuário quanto os
+// que ainda vão rolar, então a Home já abre filtrada pra "Por vir".
+const status = ref<EventoStatus | undefined>('ativos');
 
-onBeforeUnmount(() => {
-  if (debounceTimer !== null) window.clearTimeout(debounceTimer);
-});
+const municipioModal = ref(false);
+const categoriaModal = ref(false);
+const periodoModal = ref(false);
+const statusModal = ref(false);
 
 const filter = computed<EventosFilter>(() => ({
-  search: debouncedSearch.value || undefined,
-  municipio: municipio.value ?? undefined,
-  categoria: categoria.value ?? undefined,
+  search: debouncedSearch.value.trim() || undefined,
+  municipio: municipio.value.length > 0 ? municipio.value.join(',') : undefined,
+  categoria: categoria.value.length > 0 ? categoria.value.join(',') : undefined,
+  dataInicio: dataInicio.value ? toBackendDate(dataInicio.value) : undefined,
+  dataFim: dataFim.value ? toBackendDate(dataFim.value) : undefined,
+  status: status.value,
 }));
 
 const { eventos, loading, refreshing, loadingMore, error, pagination, refresh, loadMore } =
   useEventos(filter);
 
-const activeFilterCount = computed(
-  () => (municipio.value ? 1 : 0) + (categoria.value ? 1 : 0),
-);
+/** "Município" (nada selecionado) | "Itajaí" (1) | "Itajaí +2" (várias). */
+const multiSelectLabel = (selected: string[], fallback: string): string => {
+  const [primeiro] = selected;
+  if (!primeiro) return fallback;
+  if (selected.length === 1) return primeiro;
+  return `${primeiro} +${selected.length - 1}`;
+};
+
+const STATUS_LABELS: Record<'ativos' | 'passados' | 'todos', string> = {
+  ativos: 'Por vir',
+  passados: 'Já aconteceram',
+  todos: 'Todos',
+};
+
+const municipioLabel = computed(() => multiSelectLabel(municipio.value, 'Município'));
+const categoriaLabel = computed(() => multiSelectLabel(categoria.value, 'Categoria'));
+const statusLabel = computed(() => STATUS_LABELS[status.value ?? 'todos']);
+
+const periodoLabel = computed(() => {
+  if (dataInicio.value && dataFim.value) {
+    return `${formatDayMonth(dataInicio.value)} - ${formatDayMonth(dataFim.value)}`;
+  }
+  if (dataInicio.value) return `A partir de ${formatDayMonth(dataInicio.value)}`;
+  if (dataFim.value) return `Até ${formatDayMonth(dataFim.value)}`;
+  return 'Período';
+});
+
+/** O chip mostra o nome curto; o leitor de tela recebe a seleção inteira. */
+const listLabel = (selected: string[], nome: string): string | undefined =>
+  selected.length > 1 ? `${nome}: ${selected.join(', ')}` : undefined;
+
+const activeFilterCount = computed(() => {
+  let c = 0;
+  if (municipio.value.length > 0) c++;
+  if (categoria.value.length > 0) c++;
+  if (dataInicio.value || dataFim.value) c++;
+  // "ativos" é o padrão da tela — só conta como filtro ativo quando o usuário
+  // se afasta dele (passados ou todos).
+  if (status.value !== 'ativos') c++;
+  return c;
+});
 
 const clearFilters = () => {
-  municipio.value = null;
-  categoria.value = null;
+  municipio.value = [];
+  categoria.value = [];
+  dataInicio.value = null;
+  dataFim.value = null;
+  status.value = 'ativos';
 };
 
-const toggleMunicipio = (value: string) => {
-  municipio.value = municipio.value === value ? null : value;
-};
-
-const toggleCategoria = (value: string) => {
-  categoria.value = categoria.value === value ? null : value;
+const applyPeriodo = (inicio: Date | null, fim: Date | null) => {
+  dataInicio.value = inicio;
+  dataFim.value = fim;
 };
 
 const onToggleFavorito = (evento: Evento) => {
@@ -143,32 +194,38 @@ onBeforeUnmount(() => observer?.disconnect());
         />
       </div>
 
-      <p class="home__section-label t-micro">MUNICÍPIO</p>
+      <p class="home__section-label t-micro">FILTROS</p>
       <div class="chips">
         <FilterChip
-          v-for="m in MUNICIPIOS_FIXOS"
-          :key="m"
-          :label="m"
-          :active="municipio === m"
-          @click="toggleMunicipio(m)"
+          icon="time-outline"
+          :label="statusLabel"
+          :active="status !== 'ativos'"
+          trailing
+          @click="statusModal = true"
         />
-      </div>
-
-      <p class="home__section-label t-micro">CATEGORIA</p>
-      <div class="chips">
         <FilterChip
-          v-for="c in CATEGORIAS"
-          :key="c"
-          :label="c"
-          :active="categoria === c"
-          @click="toggleCategoria(c)"
+          icon="location-outline"
+          :label="municipioLabel"
+          :aria-label="listLabel(municipio, 'Município')"
+          :active="municipio.length > 0"
+          trailing
+          @click="municipioModal = true"
         />
-      </div>
-
-      <div class="chips chips--extra">
-        <!-- "Período" segue desabilitado, igual ao app: o backend aceita
-             dataInicio/dataFim, mas a UI de seleção ainda não foi desenhada. -->
-        <FilterChip icon="calendar-outline" label="Período" disabled />
+        <FilterChip
+          icon="pricetag-outline"
+          :label="categoriaLabel"
+          :aria-label="listLabel(categoria, 'Categoria')"
+          :active="categoria.length > 0"
+          trailing
+          @click="categoriaModal = true"
+        />
+        <FilterChip
+          icon="calendar-outline"
+          :label="periodoLabel"
+          :active="Boolean(dataInicio || dataFim)"
+          trailing
+          @click="periodoModal = true"
+        />
         <FilterChip
           icon="options-outline"
           :label="activeFilterCount > 0 ? `Limpar (${activeFilterCount})` : 'Limpar'"
@@ -213,6 +270,41 @@ onBeforeUnmount(() => observer?.disconnect());
     <div v-if="loadingMore" class="home__loading-more">
       <AppSpinner :size="28" label="Carregando mais eventos" />
     </div>
+
+    <FilterSelectModal
+      :open="municipioModal"
+      title="Município"
+      :options="MUNICIPIOS_FIXOS"
+      :selected="municipio"
+      search-placeholder="Buscar município..."
+      @close="municipioModal = false"
+      @apply="municipio = $event"
+    />
+
+    <FilterSelectModal
+      :open="categoriaModal"
+      title="Categoria"
+      :options="CATEGORIAS"
+      :selected="categoria"
+      search-placeholder="Buscar categoria..."
+      @close="categoriaModal = false"
+      @apply="categoria = $event"
+    />
+
+    <PeriodoFilterModal
+      :open="periodoModal"
+      :data-inicio="dataInicio"
+      :data-fim="dataFim"
+      @close="periodoModal = false"
+      @apply="applyPeriodo"
+    />
+
+    <StatusFilterModal
+      :open="statusModal"
+      :value="status"
+      @close="statusModal = false"
+      @apply="status = $event"
+    />
   </div>
 </template>
 
@@ -319,10 +411,6 @@ onBeforeUnmount(() => observer?.disconnect());
   padding-block: var(--space-xxs);
 }
 
-.chips--extra {
-  margin-top: var(--space-sm);
-}
-
 .home__result {
   margin-block: var(--space-md) var(--space-sm);
   color: var(--text-secondary);
@@ -350,11 +438,19 @@ onBeforeUnmount(() => observer?.disconnect());
 /**
  * A grade é a tradução de proporção da FlatList de coluna única: 1 card por
  * linha no celular, 2 no tablet, 3 no desktop.
+ *
+ * `align-items: stretch` (padrão do grid) + o `<li>` como flex fazem todos os
+ * cards de uma linha terminarem na mesma altura, independentemente de quantas
+ * linhas o título ocupa ou de o evento ter ou não local.
  */
 .grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-md);
+}
+
+.grid > li {
+  display: flex;
 }
 
 @media (min-width: 640px) {

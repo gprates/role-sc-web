@@ -37,11 +37,17 @@ export interface EventoResponse {
   data: Evento;
 }
 
+/** "ativos" = ainda vão rolar; "passados" = já aconteceram. */
+export type EventoStatus = 'ativos' | 'passados';
+
 export interface EventosFilter {
+  /** Um ou vários municípios separados por vírgula — o backend faz `$in`. */
   municipio?: string;
+  /** Uma ou várias categorias separadas por vírgula — o backend faz `$in`. */
   categoria?: string;
   dataInicio?: string;
   dataFim?: string;
+  status?: EventoStatus;
   search?: string;
   page?: number;
   limit?: number;
