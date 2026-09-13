@@ -55,11 +55,27 @@ const inicial = computed(() => auth.user?.nome?.[0]?.toUpperCase() ?? '?');
 
 <template>
   <div class="shell">
+    <!-- Moldura decorativa nos cantos inferiores: só em telas largas. -->
+    <img
+      class="decor decor--renda"
+      src="/images/renda-de-bilro.png"
+      alt=""
+      aria-hidden="true"
+      draggable="false"
+    />
+    <img
+      class="decor decor--violao"
+      src="/images/violao.png"
+      alt=""
+      aria-hidden="true"
+      draggable="false"
+    />
+
     <!-- Header: só a partir de 768px. -->
     <header class="header">
       <div class="header__inner content-shell">
         <RouterLink :to="{ name: 'home' }" class="header__brand">
-          <AppLogo :size="36" />
+          <AppLogo :size="44" />
           <span class="header__brand-name">Rolê SC</span>
         </RouterLink>
 
@@ -141,6 +157,43 @@ const inicial = computed(() => auth.user?.nome?.[0]?.toUpperCase() ?? '?');
   flex: 1;
   /* Espaço para a tab bar flutuante não cobrir o fim do conteúdo. */
   padding-bottom: calc(var(--tabbar-height) + var(--space-lg));
+}
+
+/* ==========================================================================
+   Decoração dos cantos (renda de bilro e violão)
+   ==========================================================================
+   Fixas na tela, porque são moldura e não conteúdo. `z-index: -1` as coloca
+   acima do gradiente do body (`body::before`, também -1, mas anterior no DOM)
+   e abaixo de tudo o que rola: os cards passam por cima delas no scroll.
+   Abaixo de 1280px não sobra margem ao lado da coluna de conteúdo e elas
+   cobririam os cards, então somem. */
+.decor {
+  display: none;
+}
+
+@media (min-width: 1280px) {
+  .decor {
+    position: fixed;
+    bottom: 0;
+    z-index: -1;
+    display: block;
+    height: auto;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* Cortadas pela borda da tela, como se continuassem para fora. */
+  .decor--renda {
+    left: 0;
+    width: clamp(180px, 13vw, 260px);
+    transform: translate(-28%, 34%) rotate(-8deg);
+  }
+
+  .decor--violao {
+    right: 0;
+    width: clamp(90px, 6.5vw, 130px);
+    transform: translate(12%, 16%) rotate(8deg);
+  }
 }
 
 /* ==========================================================================

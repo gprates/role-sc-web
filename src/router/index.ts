@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
 import { useAuthStore } from '@/stores/auth.store';
 import { usePasswordResetStore } from '@/stores/passwordReset.store';
+import { salvarRedirectPendente } from '@/utils/redirect';
 
 /**
  * Rotas do site — espelham a árvore de navegação do app mobile:
@@ -127,7 +128,10 @@ router.beforeEach((to) => {
   const auth = useAuthStore();
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
-    // Guarda o destino para retomar depois do login.
+    // Guarda o destino para retomar depois do login. A Home é o destino padrão,
+    // não precisa ser lembrada. O storage cobre quem ainda vai criar conta.
+    if (to.name === 'home') return { name: 'login' };
+    void salvarRedirectPendente(to.fullPath);
     return { name: 'login', query: { redirect: to.fullPath } };
   }
 

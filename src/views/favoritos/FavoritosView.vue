@@ -83,7 +83,7 @@ onBeforeUnmount(() => observer?.disconnect());
 
     <EmptyState
       v-else
-      icon="heart-outline"
+      image="/images/moinho.png"
       title="Nenhum favorito ainda"
       subtitle="Clique no coração de um evento para salvá-lo aqui."
     />

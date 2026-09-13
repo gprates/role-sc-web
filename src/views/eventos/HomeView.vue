@@ -254,19 +254,30 @@ onBeforeUnmount(() => observer?.disconnect());
     </div>
 
     <template v-else>
-      <ul v-if="eventos.length > 0" class="grid">
-        <li v-for="evento in eventos" :key="evento._id">
-          <EventoCard
-            :evento="evento"
-            :favorito="favoritos.isFavorito(evento._id)"
-            @toggle-favorito="onToggleFavorito(evento)"
-          />
-        </li>
-      </ul>
+      <div v-if="eventos.length > 0" class="vitrine">
+        <!-- Mascote espiando por trás do último card da primeira fileira. -->
+        <img
+          class="vitrine__capivara"
+          src="/images/capivara.png"
+          alt=""
+          aria-hidden="true"
+          draggable="false"
+        />
+
+        <ul class="grid">
+          <li v-for="evento in eventos" :key="evento._id">
+            <EventoCard
+              :evento="evento"
+              :favorito="favoritos.isFavorito(evento._id)"
+              @toggle-favorito="onToggleFavorito(evento)"
+            />
+          </li>
+        </ul>
+      </div>
 
       <EmptyState
         v-else
-        icon="calendar-outline"
+        image="/images/barco.png"
         title="Nenhum evento encontrado"
         subtitle="Tente ajustar os filtros ou volte mais tarde."
       />
@@ -441,6 +452,53 @@ onBeforeUnmount(() => observer?.disconnect());
 
 .home__sentinel {
   height: 1px;
+}
+
+/**
+ * Capivara "sentada" atrás do card da direita da primeira fileira. Ela rola
+ * junto com a grade (não é fixa): se ficasse presa na tela, o card sairia de
+ * baixo dela no scroll e a ilusão de estar apoiada se perderia.
+ *
+ * A borda direita da grade é sempre a do último card da primeira fileira, com
+ * 1, 2 ou 3 colunas — então `right` fixo serve em todos os breakpoints.
+ * `isolation` cria o contexto de empilhamento para a imagem (z 0) ficar atrás
+ * da grade (z 1) sem interferir no resto da página.
+ */
+.vitrine {
+  position: relative;
+  isolation: isolate;
+  margin-top: var(--space-lg);
+}
+
+.vitrine__capivara {
+  position: absolute;
+  top: 0;
+  right: var(--space-lg);
+  z-index: 0;
+  width: 92px;
+  height: auto;
+  /* ~82% da altura fica acima do card; os ombros somem por trás dele. */
+  transform: translateY(-82%);
+  pointer-events: none;
+  user-select: none;
+}
+
+.vitrine .grid {
+  position: relative;
+  z-index: 1;
+}
+
+@media (min-width: 640px) {
+  .vitrine__capivara {
+    width: 120px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .vitrine__capivara {
+    right: var(--space-xl);
+    width: 150px;
+  }
 }
 
 /**

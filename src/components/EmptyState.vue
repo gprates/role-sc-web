@@ -1,14 +1,28 @@
 <script setup lang="ts">
 import AppIcon, { type IconName } from './AppIcon.vue';
 
-withDefaults(defineProps<{ icon?: IconName; title: string; subtitle?: string }>(), {
-  icon: 'calendar-outline',
-});
+/**
+ * `image` (ilustração de `public/images`) substitui o ícone no círculo quando
+ * informada — usada nos estados vazios "de verdade" (nenhum evento, nenhum
+ * favorito). Erros continuam com ícone, para não parecerem decorativos.
+ */
+withDefaults(
+  defineProps<{ icon?: IconName; image?: string; title: string; subtitle?: string }>(),
+  { icon: 'calendar-outline', image: undefined },
+);
 </script>
 
 <template>
   <div class="empty">
-    <div class="empty__circle">
+    <img
+      v-if="image"
+      class="empty__image"
+      :src="image"
+      alt=""
+      aria-hidden="true"
+      draggable="false"
+    />
+    <div v-else class="empty__circle">
       <AppIcon :name="icon" :size="38" color="var(--primary)" />
     </div>
     <p class="empty__title t-subtitle">{{ title }}</p>
@@ -37,6 +51,13 @@ withDefaults(defineProps<{ icon?: IconName; title: string; subtitle?: string }>(
   background: var(--surface);
   box-shadow: var(--shadow-md);
   margin-bottom: var(--space-xs);
+}
+
+.empty__image {
+  width: min(220px, 60vw);
+  height: auto;
+  margin-bottom: var(--space-sm);
+  user-select: none;
 }
 
 .empty__title {

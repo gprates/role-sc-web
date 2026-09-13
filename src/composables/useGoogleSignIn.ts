@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useToast } from '@/composables/useToast';
 import { extractErrorMessage } from '@/services/api';
 import { useAuthStore } from '@/stores/auth.store';
+import { consumirRedirect } from '@/utils/redirect';
 
 /**
  * Login com Google na web — FORA DA v1 (fica oculto enquanto o client ID
@@ -160,10 +161,11 @@ export const useGoogleSignIn = () => {
        * só o F5 o levava adiante, empurrado pelo guard de `guestOnly`.
        *
        * `replace` (e não `push`) para o login não voltar no botão "voltar" do
-       * navegador; `route.query.redirect` retoma o destino que o guard salvou.
+       * navegador; `consumirRedirect` retoma o destino que o guard salvou —
+       * inclusive vindo da tela de cadastro, que não tem a query.
        */
-      const redirect = route.query.redirect;
-      await router.replace(typeof redirect === 'string' ? redirect : { name: 'home' });
+      const redirect = await consumirRedirect(route.query.redirect);
+      await router.replace(redirect ?? { name: 'home' });
     } catch (err) {
       toast.error('Não foi possível entrar', extractErrorMessage(err));
     } finally {

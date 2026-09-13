@@ -2,34 +2,33 @@
 import { computed } from 'vue';
 
 /**
- * Logo do Rolê SC — "R" em gradiente azul, gerado em CSS.
- * Igual ao `Logo.tsx` do mobile: sem asset de imagem no bundle.
+ * Logo do Rolê SC — imagem circular servida de `public/images`.
  */
 const props = withDefaults(defineProps<{ size?: number }>(), { size: 72 });
 
 const style = computed(() => ({
   width: `${props.size}px`,
   height: `${props.size}px`,
-  fontSize: `${props.size * 0.55}px`,
-  borderRadius: `${Math.round(props.size * 0.28)}px`,
 }));
 </script>
 
 <template>
-  <div class="logo" :style="style" role="img" aria-label="Rolê SC">R</div>
+  <img
+    class="logo"
+    src="/images/logo-role-sc.png"
+    alt="Rolê SC"
+    :width="size"
+    :height="size"
+    :style="style"
+    draggable="false"
+  />
 </template>
 
 <style scoped>
 .logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--gradient-primary-diag);
-  color: #0a1e3c;
-  font-weight: 900;
-  font-style: italic;
-  line-height: 1;
-  overflow: hidden;
+  display: block;
+  flex-shrink: 0;
+  object-fit: contain;
   user-select: none;
 }
 </style>

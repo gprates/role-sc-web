@@ -20,8 +20,9 @@ const label = computed(() =>
 <template>
   <main class="nf">
     <AppLogo :size="72" />
+    <img class="nf__barco" src="/images/barco.png" alt="" aria-hidden="true" draggable="false" />
     <p class="nf__code t-micro">ERRO 404</p>
-    <h1 class="t-display">Página não encontrada</h1>
+    <h1 class="t-display">Parece que você se perdeu no mar</h1>
     <p class="nf__text t-body">
       O endereço que você tentou abrir não existe ou foi movido.
     </p>
@@ -43,8 +44,15 @@ const label = computed(() =>
   text-align: center;
 }
 
-.nf__code {
+.nf__barco {
+  width: min(280px, 70vw);
+  height: auto;
   margin-top: var(--space-lg);
+  user-select: none;
+}
+
+.nf__code {
+  margin-top: var(--space-sm);
   color: var(--text-muted);
 }
 

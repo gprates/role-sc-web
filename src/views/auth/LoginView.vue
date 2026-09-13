@@ -12,6 +12,7 @@ import { extractErrorMessage } from '@/services/api';
 import { getApiErrorCode } from '@/services/auth.service';
 import { useAuthStore } from '@/stores/auth.store';
 import { API_ERROR_CODES } from '@/types';
+import { consumirRedirect } from '@/utils/redirect';
 
 /** T01 — Login (porte de LoginScreen.tsx). */
 const auth = useAuthStore();
@@ -36,9 +37,9 @@ const handleSubmit = async () => {
   const emailNormalizado = email.value.trim().toLowerCase();
   try {
     await auth.signIn(emailNormalizado, senha.value);
-    // Retoma o destino que o guard guardou, se houver.
-    const redirect = route.query.redirect;
-    await router.replace(typeof redirect === 'string' ? redirect : { name: 'home' });
+    // Retoma o destino que o guard guardou (query ou, após cadastro, storage).
+    const redirect = await consumirRedirect(route.query.redirect);
+    await router.replace(redirect ?? { name: 'home' });
   } catch (err) {
     // Caso especial: 403 com code EMAIL_NOT_VERIFIED significa que a conta
     // existe mas o email não foi confirmado (RN07). Em vez de um erro genérico,
@@ -58,7 +59,7 @@ const handleSubmit = async () => {
 <template>
   <div class="login">
     <header class="login__header">
-      <AppLogo :size="88" />
+      <AppLogo :size="140" />
       <h1 class="login__title t-display">Rolê SC</h1>
       <p class="login__subtitle t-body">Eventos do litoral catarinense</p>
     </header>
