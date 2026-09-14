@@ -280,7 +280,7 @@ const titulo = computed(() =>
             :aria-label="editando ? 'Salvar edição' : 'Publicar comentário'"
             @click="handleEnviar"
           >
-            <span v-if="enviando" class="composer__spinner" aria-hidden="true" />
+            <span v-if="enviando" class="composer__spinner app-spin" aria-hidden="true" />
             <AppIcon
               v-else
               :name="editando ? 'checkmark' : 'send'"
@@ -499,12 +499,5 @@ const titulo = computed(() =>
   border: 2px solid var(--text-on-primary);
   border-top-color: transparent;
   border-radius: 50%;
-  animation: composer-spin 0.7s linear infinite;
-}
-
-@keyframes composer-spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 </style>

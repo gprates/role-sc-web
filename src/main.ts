@@ -3,7 +3,9 @@ import { createApp } from 'vue';
 
 import App from './App.vue';
 import { router } from './router';
+import { setUnauthorizedHandler } from './services/api';
 import { useAuthStore } from './stores/auth.store';
+import { salvarRedirectPendente } from './utils/redirect';
 
 import './styles/global.css';
 
@@ -28,5 +30,51 @@ const auth = useAuthStore(pinia);
 
 void auth.bootstrap().finally(() => {
   app.use(router);
+
+  /**
+   * 401 do backend (JWT expirado ou inválido, RN09).
+   *
+   * Antes isto só fazia signOut, e a tela que disparou a request ficava no ar
+   * mostrando "Token inválido" — sem sessão, sem botão de entrar, sem saída.
+   * Era o que acontecia com quem abria um link compartilhado de evento no
+   * celular com uma sessão antiga guardada: o guard deixava passar (havia
+   * token), a request falhava, e a viagem terminava ali.
+   *
+   * Agora a sessão cai E o usuário vai para o login, com o destino guardado
+   * nos dois lugares que `consumirRedirect` conhece (query + localStorage),
+   * para voltar ao evento assim que autenticar.
+   *
+   * O `redirecionando` existe porque uma tela dispara várias requests em
+   * paralelo (evento, comentários, favoritos): todas tomam 401 juntas e só a
+   * primeira deve comandar a navegação.
+   */
+  let redirecionando = false;
+
+  setUnauthorizedHandler(() => {
+    if (redirecionando) return;
+    redirecionando = true;
+
+    const destino = router.currentRoute.value;
+
+    void (async () => {
+      try {
+        await auth.signOut();
+
+        if (destino.name === 'login') return;
+
+        // A Home é o destino padrão pós-login; não precisa ser lembrada.
+        const lembrar = Boolean(destino.meta.requiresAuth) && destino.name !== 'home';
+        if (lembrar) await salvarRedirectPendente(destino.fullPath);
+
+        await router.replace({
+          name: 'login',
+          query: lembrar ? { redirect: destino.fullPath } : {},
+        });
+      } finally {
+        redirecionando = false;
+      }
+    })();
+  });
+
   app.mount('#app');
 });

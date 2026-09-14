@@ -39,7 +39,7 @@ const isDisabled = computed(() => props.disabled || props.loading);
     :aria-busy="props.loading"
     @click="$emit('click', $event)"
   >
-    <span v-if="props.loading" class="btn__spinner" aria-hidden="true" />
+    <span v-if="props.loading" class="btn__spinner app-spin" aria-hidden="true" />
     <template v-else>
       <slot name="icon-left" />
       <span class="btn__label">{{ props.label }}</span>
@@ -121,12 +121,5 @@ const isDisabled = computed(() => props.disabled || props.loading);
   border: 2px solid currentColor;
   border-top-color: transparent;
   border-radius: 50%;
-  animation: btn-spin 0.7s linear infinite;
-}
-
-@keyframes btn-spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 </style>

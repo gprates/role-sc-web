@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 
-import { setUnauthorizedHandler } from '@/services/api';
 import { authService } from '@/services/auth.service';
 import type { UserPublic } from '@/types';
 import { STORAGE_KEYS } from '@/utils/constants';
+import { isTokenExpirado } from '@/utils/jwt';
 import { storage } from '@/utils/storage';
 
 /**
@@ -31,20 +31,30 @@ export const useAuthStore = defineStore('auth', () => {
   /**
    * Restaura a sessão do localStorage. Chamado uma vez em main.ts, antes de
    * montar o app, para que o primeiro render já saiba se há sessão.
+   *
+   * Um token já vencido é descartado aqui em vez de restaurado. Sem isso o
+   * guard do router via `isAuthenticated === true`, deixava passar, e só a
+   * primeira request descobria o problema — quem abria um link compartilhado
+   * de evento depois de semanas parava numa tela de erro em vez do login.
+   *
+   * O handler de 401 é registrado em main.ts, onde o router já existe: além
+   * de derrubar a sessão, ele precisa levar o usuário para a tela de login.
    */
   const bootstrap = async (): Promise<void> => {
     const [storedToken, storedUser] = await Promise.all([
       storage.get<string>(STORAGE_KEYS.token),
       storage.get<UserPublic>(STORAGE_KEYS.user),
     ]);
+
+    if (storedToken && isTokenExpirado(storedToken)) {
+      await storage.multiRemove([STORAGE_KEYS.token, STORAGE_KEYS.user]);
+      bootstrapping.value = false;
+      return;
+    }
+
     if (storedToken) token.value = storedToken;
     if (storedUser) user.value = storedUser;
     bootstrapping.value = false;
-
-    // 401 vindo do backend (JWT expirado, RN09) derruba a sessão.
-    setUnauthorizedHandler(() => {
-      void signOut();
-    });
   };
 
   const persistSession = async (newToken: string, newUser: UserPublic) => {

@@ -199,6 +199,50 @@ h4 {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+
+  /**
+   * EXCEÇÃO: indicadores de carregamento.
+   *
+   * A regra acima existe para matar animações decorativas, mas ela pegava
+   * também os spinners: eles davam UMA volta em 0.01ms e CONGELAVAM no lugar,
+   * fazendo toda espera parecer travada. Quem liga "reduzir movimento" no
+   * iOS/Android (ou "mostrar animações" no Windows) via isso o tempo todo.
+   *
+   * Um spinner parado não é acessibilidade, é um bug: ele precisa girar para
+   * comunicar "estou trabalhando". Aqui ele volta a girar, mais devagar,
+   * porque é movimento funcional e não decorativo.
+   */
+  .app-spin {
+    animation-duration: 1.4s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
+/* ==========================================================================
+   Indicador de carregamento
+   ========================================================================== */
+/**
+ * Rotação única e compartilhada por todos os spinners do site (AppSpinner,
+ * botões, composer de comentários, botão de atualizar da Home). Antes cada
+ * componente declarava o seu próprio `@keyframes`, o que multiplicava
+ * animações idênticas e deixava fácil uma delas destoar das outras.
+ *
+ * `will-change: transform` promove o elemento a uma camada própria, então a
+ * rotação roda no compositor e continua fluida enquanto a main thread está
+ * ocupada — que é exatamente quando o spinner está na tela.
+ */
+.app-spin {
+  animation: app-spin 0.7s linear infinite;
+  will-change: transform;
+}
+
+@keyframes app-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ==========================================================================

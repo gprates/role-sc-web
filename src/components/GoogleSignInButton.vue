@@ -30,7 +30,7 @@ defineEmits<{ click: [] }>();
     @click="$emit('click')"
   >
     <span class="google-btn__icon">
-      <span v-if="loading" class="google-btn__spinner" aria-hidden="true" />
+      <span v-if="loading" class="google-btn__spinner app-spin" aria-hidden="true" />
       <AppIcon v-else name="logo-google" :size="20" color="#4285F4" />
     </span>
     <span class="google-btn__label">{{ label }}</span>
@@ -83,12 +83,5 @@ defineEmits<{ click: [] }>();
   border: 2px solid #3c4043;
   border-top-color: transparent;
   border-radius: 50%;
-  animation: google-spin 0.7s linear infinite;
-}
-
-@keyframes google-spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 </style>

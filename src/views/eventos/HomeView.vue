@@ -186,7 +186,7 @@ onBeforeUnmount(() => observer?.disconnect());
           <AppIcon
             name="refresh-outline"
             :size="20"
-            :class="{ 'home__refresh-icon--spinning': refreshing }"
+            :class="{ 'app-spin': refreshing }"
           />
         </button>
       </div>
@@ -370,16 +370,6 @@ onBeforeUnmount(() => observer?.disconnect());
 
 .home__refresh:disabled {
   opacity: 0.6;
-}
-
-.home__refresh-icon--spinning {
-  animation: refresh-spin 0.9s linear infinite;
-}
-
-@keyframes refresh-spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 .search {

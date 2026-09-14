@@ -7,7 +7,7 @@ withDefaults(defineProps<{ size?: number; label?: string }>(), {
 
 <template>
   <span
-    class="spinner"
+    class="spinner app-spin"
     :style="{ width: `${size}px`, height: `${size}px` }"
     role="status"
     :aria-label="label"
@@ -20,12 +20,7 @@ withDefaults(defineProps<{ size?: number; label?: string }>(), {
   border: 3px solid var(--border-strong);
   border-top-color: var(--primary);
   border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  /* A rotação vem de `.app-spin` (global.css) — compartilhada com os demais
+     indicadores e imune ao kill-switch de prefers-reduced-motion. */
 }
 </style>
