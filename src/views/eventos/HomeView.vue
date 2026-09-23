@@ -19,6 +19,7 @@ import type { Evento, EventosFilter, EventoStatus } from '@/types';
 import { CATEGORIAS, MUNICIPIOS_FIXOS } from '@/utils/constants';
 import { formatDayMonth } from '@/utils/dateRange';
 import { toBackendDate } from '@/utils/format';
+import { agruparPorPeriodo, type SecaoPeriodo } from '@/utils/secoesPeriodo';
 
 /**
  * T07 — Home / listagem de eventos (porte de HomeScreen.tsx).
@@ -140,6 +141,17 @@ const resultLabel = computed(() => {
   return `${total} ${total === 1 ? 'evento encontrado' : 'eventos encontrados'}`;
 });
 
+/**
+ * Em "Por vir" a lista é dividida por período (Hoje, Esta semana, meses...).
+ * Nos outros status a ordem é outra (passados vêm do mais recente pro mais
+ * antigo), então lá fica uma única seção sem título — a grade de sempre.
+ */
+const secoes = computed<SecaoPeriodo[]>(() =>
+  status.value === 'ativos'
+    ? agruparPorPeriodo(eventos.value)
+    : [{ key: 'todos', label: '', eventos: eventos.value }],
+);
+
 const primeiroNome = computed(() => auth.user?.nome?.split(' ')[0] ?? '');
 
 /**
@@ -254,25 +266,42 @@ onBeforeUnmount(() => observer?.disconnect());
     </div>
 
     <template v-else>
-      <div v-if="eventos.length > 0" class="vitrine">
-        <!-- Mascote espiando por trás do último card da primeira fileira. -->
-        <img
-          class="vitrine__capivara"
-          src="/images/capivara.png"
-          alt=""
-          aria-hidden="true"
-          draggable="false"
-        />
+      <div v-if="eventos.length > 0" class="secoes">
+        <section
+          v-for="(secao, index) in secoes"
+          :key="secao.key"
+          class="secao"
+          :aria-labelledby="secao.label ? `secao-${secao.key}` : undefined"
+        >
+          <header v-if="secao.label" class="secao__header">
+            <h2 :id="`secao-${secao.key}`" class="secao__titulo t-subtitle">{{ secao.label }}</h2>
+            <span class="secao__total t-caption-bold">
+              {{ secao.eventos.length }} {{ secao.eventos.length === 1 ? 'evento' : 'eventos' }}
+            </span>
+          </header>
 
-        <ul class="grid">
-          <li v-for="evento in eventos" :key="evento._id">
-            <EventoCard
-              :evento="evento"
-              :favorito="favoritos.isFavorito(evento._id)"
-              @toggle-favorito="onToggleFavorito(evento)"
+          <div class="vitrine">
+            <!-- Mascote espiando por trás do último card da primeira fileira. -->
+            <img
+              v-if="index === 0"
+              class="vitrine__capivara"
+              src="/images/capivara.png"
+              alt=""
+              aria-hidden="true"
+              draggable="false"
             />
-          </li>
-        </ul>
+
+            <ul class="grid">
+              <li v-for="evento in secao.eventos" :key="evento._id">
+                <EventoCard
+                  :evento="evento"
+                  :favorito="favoritos.isFavorito(evento._id)"
+                  @toggle-favorito="onToggleFavorito(evento)"
+                />
+              </li>
+            </ul>
+          </div>
+        </section>
       </div>
 
       <EmptyState
@@ -442,6 +471,50 @@ onBeforeUnmount(() => observer?.disconnect());
 
 .home__sentinel {
   height: 1px;
+}
+
+/* Seções de período ("Hoje", "Esta semana", "Dezembro"...) da aba Por vir. */
+.secao + .secao {
+  margin-top: var(--space-xxl);
+}
+
+/**
+ * Barrinha no gradiente da marca + título em azul + contador em pílula (mesmas
+ * cores dos chips) + linha fina até a borda, que marca a divisão sem pesar.
+ */
+.secao__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+.secao__header::before {
+  content: '';
+  flex: none;
+  width: 4px;
+  height: 22px;
+  border-radius: var(--radius-pill);
+  background: var(--gradient-primary-diag);
+}
+
+.secao__header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-strong);
+}
+
+.secao__titulo {
+  color: var(--primary-dark);
+}
+
+.secao__total {
+  flex: none;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-pill);
+  background: var(--chip-bg);
+  color: var(--chip-text);
 }
 
 /**
