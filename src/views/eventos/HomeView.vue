@@ -281,18 +281,18 @@ onBeforeUnmount(() => observer?.disconnect());
           </header>
 
           <div class="vitrine">
-            <!-- Mascote espiando por trás do último card da primeira fileira. -->
-            <img
-              v-if="index === 0"
-              class="vitrine__capivara"
-              src="/images/capivara.png"
-              alt=""
-              aria-hidden="true"
-              draggable="false"
-            />
-
             <ul class="grid">
-              <li v-for="evento in secao.eventos" :key="evento._id">
+              <li v-for="(evento, i) in secao.eventos" :key="evento._id">
+                <!-- Mascote espiando por trás do último card da primeira
+                     fileira; o CSS decide qual dos três primeiros aparece. -->
+                <img
+                  v-if="index === 0 && i < 3"
+                  class="vitrine__capivara"
+                  src="/images/capivara.png"
+                  alt=""
+                  aria-hidden="true"
+                  draggable="false"
+                />
                 <EventoCard
                   :evento="evento"
                   :favorito="favoritos.isFavorito(evento._id)"
@@ -522,22 +522,30 @@ onBeforeUnmount(() => observer?.disconnect());
  * junto com a grade (não é fixa): se ficasse presa na tela, o card sairia de
  * baixo dela no scroll e a ilusão de estar apoiada se perderia.
  *
- * A borda direita da grade é sempre a do último card da primeira fileira, com
- * 1, 2 ou 3 colunas — então `right` fixo serve em todos os breakpoints.
- * `isolation` cria o contexto de empilhamento para a imagem (z 0) ficar atrás
- * da grade (z 1) sem interferir no resto da página.
+ * Ela vive dentro do `<li>`, ancorada no próprio card: se a primeira fileira
+ * não estiver cheia (ex.: "Hoje" com 1 evento no desktop), ancorar na borda da
+ * grade a deixaria flutuando sobre uma coluna vazia. Os três primeiros cards
+ * recebem a imagem e cada breakpoint mostra só a do card que fecha a fileira —
+ * ou a do último card, quando há menos cards que colunas.
+ *
+ * `isolation` no `<li>` prende o z-index -1 da imagem ali dentro: ela fica
+ * atrás do card sem descer para trás do fundo da página.
  */
 .vitrine {
-  position: relative;
-  isolation: isolate;
   margin-top: var(--space-lg);
 }
 
+.grid > li {
+  position: relative;
+  isolation: isolate;
+}
+
 .vitrine__capivara {
+  display: none;
   position: absolute;
   top: 0;
   right: var(--space-lg);
-  z-index: 0;
+  z-index: -1;
   width: 92px;
   height: auto;
   /* ~82% da altura fica acima do card; os ombros somem por trás dele. */
@@ -546,14 +554,23 @@ onBeforeUnmount(() => observer?.disconnect());
   user-select: none;
 }
 
-.vitrine .grid {
-  position: relative;
-  z-index: 1;
+/* 1 coluna: sempre o primeiro card. */
+.grid > li:first-child > .vitrine__capivara {
+  display: block;
 }
 
 @media (min-width: 640px) {
   .vitrine__capivara {
     width: 120px;
+  }
+
+  /* 2 colunas: o segundo card, ou o primeiro se ele for o único. */
+  .grid > li:first-child:not(:last-child) > .vitrine__capivara {
+    display: none;
+  }
+
+  .grid > li:nth-child(2) > .vitrine__capivara {
+    display: block;
   }
 }
 
@@ -561,6 +578,15 @@ onBeforeUnmount(() => observer?.disconnect());
   .vitrine__capivara {
     right: var(--space-xl);
     width: 150px;
+  }
+
+  /* 3 colunas: o terceiro card, ou o último se houver menos de três. */
+  .grid > li:nth-child(2):not(:last-child) > .vitrine__capivara {
+    display: none;
+  }
+
+  .grid > li:nth-child(3) > .vitrine__capivara {
+    display: block;
   }
 }
 
