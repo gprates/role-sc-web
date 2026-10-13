@@ -1,0 +1,28 @@
+# Dependências e saídas de build (são refeitas dentro da imagem)
+node_modules
+**/node_modules
+dist
+
+# Variáveis de ambiente locais: NUNCA entram na imagem.
+# O Vite carregaria .env.local no build e embutiria as VITE_* no bundle.
+.env
+.env.*
+**/.env
+**/.env.*
+*.local
+**/*.local
+!.env.example
+
+# Git, editores e arquivos locais
+.git
+.gitignore
+.vscode
+.idea
+.history
+*.log
+.DS_Store
+AUDITORIA.md
+
+# Arquivos do próprio Docker
+Dockerfile
+.dockerignore
