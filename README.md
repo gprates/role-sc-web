@@ -1,203 +1,307 @@
 # Rolê SC — Web
 
-Versão web do aplicativo **Rolê SC**, em **Vue 3 + Vite + TypeScript**. Mesmas
-telas, mesmo backend e mesmo design system do app mobile — o que muda são as
-proporções e os mecanismos que não existem no browser.
+Site do **Rolê SC**, que reúne eventos culturais e municipais do litoral norte
+de Santa Catarina. É uma SPA em **Vue 3 + Vite + TypeScript**, com as mesmas
+telas e o mesmo backend do app mobile. Em produção é publicada como site
+estático em **S3 + CloudFront**.
 
-Publicado em **https://www.role-sc.com.br** (S3 + CloudFront).
+> Parte do sistema do TCC: **webcrawler** → **processador NLP** → **API**
+> (`role-sc-api`) → **app mobile** e **site** (este repositório).
 
-> Parte do ecossistema do TCC: **web-crawler** → **nlp-processor** → **api** →
-> **app mobile** / **web** (este projeto).
+## O que o site faz
+
+Todo o conteúdo fica atrás de login; sem sessão, qualquer rota leva a `/login`.
+
+- **Conta:** login por e-mail e senha, cadastro, verificação de e-mail,
+  recuperação de senha em 3 etapas e login com Google (opcional, aparece só
+  quando o Client ID é configurado).
+- **Eventos:** lista com busca e filtros (status, município, categoria e
+  período), agrupada por período, com rolagem infinita; detalhe do evento com
+  comentários e curtidas; compartilhamento (copia o link).
+- **Favoritos:** guardados no servidor, por usuário.
+- **Perfil:** edição de nome, troca de senha e foto (upload direto para o S3
+  por URL pré-assinada que a API devolve).
+- Página 404 para rotas inexistentes.
+
+O site não acessa banco nem fila. Ele só fala com a API, sempre pelo caminho
+relativo **`/api`** (mesmo domínio, sem CORS), com o JWT no header
+`Authorization`. Quem encaminha `/api/*` para a API, removendo o prefixo
+(`/api/eventos` → `/eventos`), depende do ambiente:
+
+| Ambiente | Quem encaminha `/api/*` | `x-api-key` |
+|----------|-------------------------|-------------|
+| Produção | CloudFront (behavior `/api/*` → API Gateway) | injetada pelo CloudFront (Origin Custom Header) |
+| `pnpm dev` / `pnpm preview` | proxy do Vite (`vite.config.ts`), alvo `DEV_API_TARGET` | injetada pelo proxy se `DEV_API_KEY` estiver preenchida |
+| Docker | nginx do container, alvo `API_UPSTREAM` | não é injetada (a API local não exige) |
+
+Em nenhum caso a API key vai para o JavaScript do site.
+
+### Stack
+
+Vue 3 (`<script setup>`), Vite 6, TypeScript 5.9 (`strict`), Vue Router 4
+(`createWebHistory`, com guards de autenticação), Pinia 3, Axios,
+CSS com custom properties (sem framework CSS) e `unplugin-icons` com Ionicons.
+Gerenciador de pacotes: pnpm.
 
 ---
 
-## Stack
+## Rodar localmente
 
-| Tecnologia | Uso |
-|------------|-----|
-| Vue 3 (Composition API, `<script setup>`) | Framework de UI |
-| Vite 6 | Dev server e bundler |
-| TypeScript 5.9 | Tipagem — modo `strict`, com `noUncheckedIndexedAccess` |
-| Vue Router 4 | Roteamento + guards de autenticação |
-| Pinia 3 | Estado global (auth, favoritos) |
-| Axios | Cliente HTTP com interceptors |
-| CSS custom properties + `<style scoped>` | Estilo, sem framework CSS |
-| unplugin-icons + @iconify-json/ion | Os mesmos Ionicons do app, inline em build time |
-| pnpm | Package manager (consistência com os outros repos) |
+### Pré-requisitos
 
-**Sem framework CSS de propósito.** O design system do projeto já existe como
-tokens (`theme/colors.ts`, `spacing.ts`, `typography.ts` no mobile); traduzi-los
-para `:root { --primary: ... }` é uma correspondência 1:1, e mantém o CSS ao
-lado do template no mesmo arquivo.
+- Node.js **>= 20.19** (testado com 24.21)
+- pnpm (testado com 12.5.1)
+- A API rodando localmente: no repositório `role-sc-api`, `pnpm dev` sobe a
+  API em `http://localhost:3000`, com rotas sem o prefixo `/api`.
 
----
-
-## Setup
+### Passo a passo
 
 ```bash
-# 1. Dependências
-pnpm install
+pnpm install --frozen-lockfile
 
-# 2. Ambiente
-cp .env.example .env.local
-#    preencha DEV_API_TARGET e DEV_API_KEY
+cp .env.example .env.local     # DEV_API_TARGET já aponta para http://localhost:3000
 
-# 3. Rodar
-pnpm dev            # http://localhost:5173
+pnpm dev                       # http://localhost:5173
 ```
 
-### Variáveis de ambiente
+Para usar outra API sem editar o arquivo, passe a variável no shell (ela tem
+precedência sobre o `.env.local`):
 
-Estão todas documentadas em [`.env.example`](./.env.example). A regra que
-importa:
-
-> **Variáveis sem o prefixo `VITE_` nunca entram no bundle.**
-
-É por isso que a API key mora em `DEV_API_KEY` e não em `VITE_API_KEY` — ela é
-lida pelo proxy do dev server (que roda em Node), não pelo browser.
-
-| Variável | Onde é lida | Vai para o bundle? |
-|----------|-------------|--------------------|
-| `DEV_API_TARGET` | `vite.config.ts` (Node) | não |
-| `DEV_API_KEY` | `vite.config.ts` (Node) | **não** |
-| `VITE_GOOGLE_WEB_CLIENT_ID` | browser | sim (é público por natureza) |
-| `AWS_S3_BUCKET`, `AWS_CLOUDFRONT_DISTRIBUTION_ID` | `scripts/deploy.mjs` (Node) | não |
-
----
-
-## A API key nunca chega ao browser
-
-Este é o ponto arquitetural mais importante do projeto, e vale um parágrafo na
-monografia.
-
-O API Gateway exige o header `x-api-key` em toda requisição. Num site estático
-não existe "lado servidor": tudo que o JavaScript conhece, o visitante também
-conhece. Embutir a chave no bundle a deixaria a dois cliques no DevTools, e a
-quota de 10.000 req/dia seria de quem quisesse.
-
-A solução é fazer a **infraestrutura** injetar o header, depois que a requisição
-já saiu do browser:
-
-| Ambiente | Quem injeta a `x-api-key` |
-|----------|---------------------------|
-| Produção | CloudFront, via *Origin Custom Header* no behavior `/api/*` |
-| Desenvolvimento | O proxy do dev server do Vite, lendo `DEV_API_KEY` |
-
-Nos dois casos o código do app faz a mesma coisa — `GET /api/eventos` — e não
-conhece chave nenhuma. De quebra, as chamadas viram same-origin: **zero CORS,
-zero requisição preflight**.
-
-A configuração do CloudFront está em [`docs/DEPLOY_AWS.md`](./docs/DEPLOY_AWS.md).
-
----
-
-## Arquitetura
-
-```
-src/
-├── main.ts                     # bootstrap: restaura a sessão ANTES de montar
-├── App.vue                     # raiz + hosts globais (toasts, diálogo)
-├── router/
-│   └── index.ts                # rotas + guards (requiresAuth / guestOnly)
-├── layouts/
-│   ├── AuthLayout.vue          # cartão centrado (login, cadastro, ...)
-│   └── AppLayout.vue           # tab bar no mobile ↔ header no desktop
-├── views/
-│   ├── auth/                   # T01–T06
-│   ├── eventos/                # T07–T08
-│   ├── favoritos/              # T10
-│   ├── perfil/                 # T11–T13
-│   └── NaoEncontradoView.vue   # 404 (não existe no mobile)
-├── components/                 # AppButton, AppInput, EventoCard, AppIcon, ...
-├── composables/                # useEventos, useToast, useConfirm, useAvatarUpload
-├── stores/                     # auth, favoritos, passwordReset  (Pinia)
-├── services/                   # api, auth, evento, metadata, favoritos, avatar
-├── types/                      # cópia direta do app mobile
-├── utils/                      # constants, format, password, storage, platform
-├── theme/                      # colors.ts (as cores em JS)
-└── styles/
-    ├── tokens.css              # design system em CSS custom properties
-    └── global.css              # reset + escala tipográfica + utilitários
+```bash
+DEV_API_TARGET=http://127.0.0.1:3000 pnpm dev
 ```
 
-### O que veio pronto do app mobile
+> **Cuidado:** o Vite carrega o `.env.local` em `pnpm dev`, `pnpm preview` e
+> `pnpm build`. Se o `DEV_API_TARGET` dele apontar para a API de produção, o
+> desenvolvimento local grava dados reais (login, favoritos, comentários).
+> Para desenvolvimento, use sempre a API local.
 
-`types/`, `utils/format.ts` e `utils/password.ts` são **cópia literal** — são
-TypeScript puro, sem nenhuma dependência de React Native. `services/` mudou
-apenas o necessário. Isso mantém o contrato com a API idêntico entre as duas
-plataformas: se o backend mudar, os dois quebram no mesmo lugar.
-
-### Equivalências mobile ↔ web
-
-| App mobile (React Native) | Site (Vue 3) | Nota |
-|---------------------------|--------------|------|
-| `AuthContext` | `stores/auth.store.ts` | Pinia |
-| `useEventos`, `useFavoritos` (hooks) | composable / store | favoritos viraram store global: não precisa de `useFocusEffect` |
-| React Navigation (stacks + tabs) | Vue Router + `AppLayout` | |
-| `AsyncStorage` | `localStorage` | mesma interface async, para os services não mudarem |
-| `Alert.alert` informativo | `useToast` + `ToastHost` | toast não bloqueia a tela |
-| `Alert.alert` com botões | `useConfirm` + `ConfirmDialog` | devolve `Promise<boolean>` |
-| `FlatList` + `onEndReached` | grade CSS + `IntersectionObserver` | |
-| pull-to-refresh | botão de atualizar | o gesto não existe no desktop |
-| `Share.share` | `navigator.share`, com fallback para o clipboard | |
-| `WebBrowser.openBrowserAsync` | `window.open(..., 'noopener,noreferrer')` | |
-| `expo-image-picker` | `<input type="file">` | o SO já oferece a câmera |
-| `@expo/vector-icons` (Ionicons) | `unplugin-icons` + `@iconify-json/ion` | mesmos ícones, inline, sem runtime |
-| `expo-linear-gradient` | `linear-gradient()` do CSS | |
-| `@react-native-google-signin` | Google Identity Services | fora da v1 |
-
-### As proporções
-
-O pedido era "mesmas telas, só mudam as proporções". Onde isso aparece:
-
-| Elemento | < 768px | ≥ 768px |
-|----------|---------|---------|
-| Navegação | tab bar flutuante no rodapé, igual ao app | header fixo no topo |
-| Lista de eventos | 1 card por linha | 2 (≥640px) e 3 (≥1024px) colunas |
-| Detalhe do evento | coluna única, barra de ações fixa no rodapé | duas colunas (conteúdo + card de infos), barra de ações no fluxo |
-| Telas de auth | largura cheia | cartão de 440px centrado |
-| Modal de comentários | bottom sheet | diálogo centrado |
-| Escala tipográfica | a do app | um degrau acima |
-
----
-
-## Divergências propositais em relação ao app
-
-1. **Balneário Camboriú entrou na lista de municípios.** O app mobile lista
-   apenas 5 em `utils/constants.ts`, mas a monografia declara 6 municípios-alvo
-   e o crawler já coleta eventos de Balneário Camboriú — ou seja, existem
-   eventos no banco que o usuário do app **não consegue filtrar**. Aqui a lista
-   está completa. Vale corrigir o mobile também.
-
-2. **Existe uma página 404.** Um stack navigator não tem o conceito de "URL
-   inválida"; um site tem.
-
-3. **Login com Google está fora da v1.** O código está pronto
-   (`composables/useGoogleSignIn.ts`) e o backend já aceita o mesmo audience.
-   Para ligar, veja o cabeçalho daquele arquivo.
-
----
-
-## Scripts
+### Outros comandos
 
 | Comando | O que faz |
 |---------|-----------|
 | `pnpm dev` | Dev server em http://localhost:5173, com proxy `/api/*` |
-| `pnpm build` | `vue-tsc --noEmit` + build de produção em `dist/` |
-| `pnpm type-check` | Só a checagem de tipos |
-| `pnpm preview` | Serve o `dist/` localmente, com o mesmo proxy |
-| `pnpm deploy` | build + `aws s3 sync` + invalidação do CloudFront |
-| `pnpm deploy:only` | Publica o `dist/` que já existe |
+| `pnpm type-check` | Só a checagem de tipos (`vue-tsc --noEmit`) |
+| `pnpm build` | Checagem de tipos + build de produção em `dist/` |
+| `pnpm build:only` | Build sem a checagem de tipos |
+| `pnpm preview` | Serve o `dist/` em http://localhost:4173, com o mesmo proxy `/api/*` |
+| `pnpm run deploy` | Build + publicação na AWS (ver [Deploy](#deploy)) |
+| `pnpm run deploy:only` | Publica o `dist/` existente, sem build |
+
+Não há testes automatizados nem lint; a verificação automática é o
+`pnpm type-check` (também executado pelo `pnpm build`).
+
+---
+
+## Rodar com Docker
+
+O `Dockerfile` faz o build em duas etapas: `node:24-alpine` roda
+`pnpm install --frozen-lockfile` e `pnpm build`, e `nginx:1.28-alpine` serve o
+`dist/`. O nginx:
+
+- devolve o `index.html` para qualquer rota que não seja arquivo (fallback de
+  SPA, como os custom error responses do CloudFront);
+- encaminha `/api/*` para `API_UPSTREAM`, removendo o prefixo `/api` (como o
+  CloudFront e o proxy do Vite). O nome do upstream é resolvido a cada
+  requisição, então o container sobe mesmo sem a API no ar;
+- responde `502 {"success":false,"message":"API indisponível no momento."}`
+  quando a API não responde;
+- usa `Cache-Control` de 1 ano em `/assets/*` (nomes com hash) e
+  `no-cache` no `index.html`;
+- expõe `GET /healthz` (200 `ok`), usado pelo `HEALTHCHECK` da imagem.
+
+O `.dockerignore` exclui `.env`, `.env.local` e qualquer `.env.*` (menos o
+`.env.example`), então nenhum valor local entra na imagem.
+
+### Build e execução
+
+```bash
+docker build -t role-sc-web .
+
+# API rodando na máquina host, na porta 3000 (Docker Desktop):
+docker run --rm -p 8080:80 \
+  -e API_UPSTREAM=http://host.docker.internal:3000 \
+  role-sc-web
+# -> http://localhost:8080
+```
+
+No Linux, acrescente `--add-host=host.docker.internal:host-gateway` para que
+`host.docker.internal` exista dentro do container.
+
+Com login Google (o Client ID é público e vai no bundle, por isso é definido
+no build):
+
+```bash
+docker build --build-arg VITE_GOOGLE_WEB_CLIENT_ID=<client-id-web> -t role-sc-web .
+```
+
+### Em um docker-compose
+
+O padrão de `API_UPSTREAM` é `http://api:3000`, ou seja, um serviço chamado
+`api` na mesma rede do compose, escutando na porta 3000:
+
+```yaml
+services:
+  web:
+    build:
+      context: ./role-sc-web
+      args:
+        VITE_GOOGLE_WEB_CLIENT_ID: ""     # vazio esconde o botão do Google
+    ports:
+      - "8080:80"
+    environment:
+      API_UPSTREAM: http://api:3000       # padrão; pode ser omitido
+    depends_on:
+      - api
+```
+
+### Variáveis do container
+
+| Variável | Tipo | Padrão | Descrição |
+|----------|------|--------|-----------|
+| `API_UPSTREAM` | runtime (`-e`) | `http://api:3000` | Origem da API: `esquema://host[:porta]`, **sem** barra e sem caminho no final. Recebe `/api/x` como `/x`. |
+| `VITE_GOOGLE_WEB_CLIENT_ID` | build (`--build-arg`) | vazio | Client ID Web do Google. Vazio esconde o botão "Continuar com Google". |
+
+Porta interna: **80**. O container não injeta `x-api-key`; para falar com um
+API Gateway use o fluxo de produção (CloudFront) ou o `pnpm dev` com
+`DEV_API_KEY`.
+
+---
+
+## Variáveis de ambiente
+
+Todas estão comentadas no [`.env.example`](./.env.example). Copie-o para
+`.env.local` (ignorado pelo git). **Só as variáveis com prefixo `VITE_` entram
+no bundle**, e por isso ficam visíveis para qualquer visitante; as demais são
+lidas apenas por Node.
+
+| Variável | Lida por | Vai para o bundle? | Padrão / exemplo | Para que serve |
+|----------|----------|--------------------|------------------|----------------|
+| `DEV_API_TARGET` | `vite.config.ts` (dev e preview) | não | `http://localhost:3000` | Alvo do proxy `/api/*` |
+| `DEV_API_KEY` | `vite.config.ts` (dev e preview) | não | vazio | `x-api-key` injetada pelo proxy (só se o alvo for o API Gateway) |
+| `VITE_GOOGLE_WEB_CLIENT_ID` | `src/composables/useGoogleSignIn.ts` | **sim** (público) | vazio | Client ID Web do Google; vazio esconde o botão |
+| `VITE_API_BASE_URL` | `src/services/api.ts` | **sim** | não definida | "Modo direto": o browser chama a API sem o proxy. Não recomendado |
+| `VITE_API_KEY` | `src/services/api.ts` | **sim** (fica exposta) | não definida | `x-api-key` do modo direto. Não recomendado |
+| `AWS_S3_BUCKET` | `scripts/deploy.mjs` | não | — | Bucket S3 do site (obrigatória no deploy) |
+| `AWS_CLOUDFRONT_DISTRIBUTION_ID` | `scripts/deploy.mjs` | não | — | Distribuição a invalidar (opcional) |
+| `AWS_PROFILE` | `scripts/deploy.mjs` | não | — | Perfil do AWS CLI (opcional) |
+| `API_UPSTREAM` | nginx do container | não | `http://api:3000` | Ver [Docker](#rodar-com-docker); não é lida do `.env.local` |
+
+O Client ID do Google precisa ser o mesmo `GOOGLE_WEB_CLIENT_ID` que a API usa
+como audience, e a origem do site precisa estar em "Authorized JavaScript
+origins" no Google Cloud Console.
+
+O `scripts/deploy.mjs` lê `.env.deploy`, `.env.local` e `.env`, nessa ordem; o
+primeiro valor não vazio encontrado vale, e o que já estiver no shell tem
+precedência sobre os arquivos.
 
 ---
 
 ## Deploy
 
-Ver **[`docs/DEPLOY_AWS.md`](./docs/DEPLOY_AWS.md)** — cobre os custom error
-responses do SPA, a configuração do proxy `/api/*` e a estratégia de cache.
+O deploy é manual, feito da máquina do desenvolvedor: build local, envio do
+`dist/` para o S3 e invalidação do cache do CloudFront. Não há CI/CD, e a
+imagem Docker não faz parte desse processo.
+
+### Configuração única (console da AWS)
+
+Descrita em [`docs/DEPLOY_AWS.md`](./docs/DEPLOY_AWS.md); nada disso está
+versionado. Parte do princípio de que bucket, distribuição, certificado e DNS
+já existem.
+
+1. **Fallback de SPA no CloudFront:** custom error responses `403` e `404` →
+   `/index.html` com status `200` e TTL de erro 0.
+2. **Origem da API:** segunda origem apontando para o host do API Gateway
+   (HTTPS only, origin path com o stage), com o **Origin Custom Header
+   `x-api-key`** contendo a chave da API.
+3. **Behavior `/api/*`:** todos os métodos HTTP, cache policy
+   `CachingDisabled`, origin request policy `AllViewerExceptHostHeader`,
+   avaliado antes do `Default (*)`.
+4. **Credenciais:** AWS CLI v2 instalado e autenticado (de preferência um
+   usuário IAM só para o deploy, com a policy de exemplo do documento).
+
+A API responde nas rotas **sem** o prefixo `/api`; o `docs/DEPLOY_AWS.md` não
+descreve como o CloudFront remove esse prefixo, então confira esse ponto na
+distribuição antes de recriá-la.
+
+### Configuração do script
+
+No `.env.local`, no `.env.deploy` ou no shell:
+
+```
+AWS_S3_BUCKET=<nome-do-bucket>
+AWS_CLOUDFRONT_DISTRIBUTION_ID=<id-da-distribuicao>   # opcional
+AWS_PROFILE=<perfil-do-aws-cli>                       # opcional
+```
+
+### A cada publicação
+
+```bash
+pnpm run deploy        # pnpm build + scripts/deploy.mjs
+pnpm run deploy:only   # só scripts/deploy.mjs, com o dist/ que já existe
+```
+
+Use `pnpm run deploy`, e não `pnpm deploy`: `deploy` também é um comando
+embutido do pnpm ("deploy a package from a workspace"), que tem precedência
+sobre o script do `package.json`. O `deploy:only` não tem esse conflito.
+
+O `scripts/deploy.mjs`:
+
+1. confere se `AWS_S3_BUCKET` está definido e se `dist/index.html` existe;
+2. `aws s3 sync dist/ s3://<bucket>/ --delete --exclude '*.html'` com
+   `Cache-Control: public,max-age=31536000,immutable` (assets);
+3. `aws s3 sync` só dos `*.html`, com `Cache-Control: no-cache,must-revalidate`
+   (depois dos assets, para o HTML novo nunca apontar para arquivos que ainda
+   não subiram);
+4. se `AWS_CLOUDFRONT_DISTRIBUTION_ID` estiver definido,
+   `aws cloudfront create-invalidation --paths / /index.html`; senão, só avisa.
+
+Observações:
+
+- O build de produção também lê o `.env.local` da máquina que publica: é dele
+  que vem o `VITE_GOOGLE_WEB_CLIENT_ID` do bundle.
+- Os arquivos copiados de `public/` (imagens, favicons, `robots.txt`) não têm
+  hash no nome, mas também sobem com cache de 1 ano; a invalidação cobre só
+  `/` e `/index.html`.
+- O build gera source maps (`build.sourcemap: true`), que são publicados junto.
+- Depois do deploy, abra uma rota interna direto na barra (ex.: `/favoritos`)
+  e chame `/api/eventos` no domínio do site para conferir o fallback e o proxy
+  (checklist no fim do `docs/DEPLOY_AWS.md`).
 
 ---
 
-## Licença / Créditos
+## Estrutura
+
+```
+src/
+├── main.ts              # bootstrap: restaura a sessão antes de montar o app
+├── App.vue              # raiz + hosts globais (toasts, diálogo de confirmação)
+├── router/index.ts      # rotas + guards (requiresAuth / guestOnly)
+├── layouts/             # AuthLayout (cartão centrado), AppLayout (tab bar ↔ header)
+├── views/               # auth/, eventos/, favoritos/, perfil/, NaoEncontradoView
+├── components/          # cards, filtros, modais, comentários, inputs, ícones
+├── composables/         # useEventos, useComentarios, useAvatarUpload, useGoogleSignIn, ...
+├── stores/              # Pinia: auth, favoritos, passwordReset
+├── services/            # api (Axios + interceptors) e um service por recurso da API
+├── types/               # contratos da API (mesmos tipos do app mobile)
+├── utils/               # constantes, datas/períodos, JWT, storage, redirect, share
+├── theme/ e styles/     # design system (cores em TS, tokens em CSS)
+docker/default.conf.template   # nginx do container (fallback de SPA + proxy /api)
+scripts/deploy.mjs             # publicação no S3 + invalidação do CloudFront
+docs/DEPLOY_AWS.md             # configuração do CloudFront e do deploy
+```
+
+Detalhes de implementação que valem conhecer:
+
+- **Sessão:** o JWT e o usuário ficam no `localStorage` (`@rolesc/token` e
+  `@rolesc/user`); um `401` da API encerra a sessão e leva ao login.
+- **Listas fixas:** categorias e municípios estão em `src/utils/constants.ts` e
+  precisam acompanhar o backend.
+- **Respostas da API:** `{ success: true, data, pagination? }` e, em erro,
+  `{ success: false, message, code? }`.
+
+---
+
+## Créditos
 
 Projeto acadêmico (TCC) de Gabriel Prates — 2026.

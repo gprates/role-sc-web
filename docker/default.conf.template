@@ -1,0 +1,79 @@
+# Configuração do nginx do container do site (gerada no start do container).
+#
+# A imagem oficial do nginx passa este arquivo pelo envsubst e grava o
+# resultado em /etc/nginx/conf.d/default.conf. Só as variáveis definidas no
+# ambiente são substituídas; variáveis do próprio nginx ($uri, $host...) ficam
+# intactas.
+#
+#   API_UPSTREAM            origem da API, sem barra e sem caminho no final
+#                           (padrão no Dockerfile: http://api:3000)
+#   NGINX_LOCAL_RESOLVERS   DNS do container, preenchido pela imagem do nginx
+#                           (NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1 no Dockerfile)
+
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+    server_tokens off;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+
+    # O nome do upstream é resolvido a cada requisição (e não só no start), por
+    # isso o container sobe mesmo sem a API no ar e acompanha a troca de IP do
+    # container da API.
+    resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=off;
+
+    # /api/* -> API, sem o prefixo /api: /api/eventos?page=1 vira
+    # ${API_UPSTREAM}/eventos?page=1. Faz o papel que o CloudFront tem em
+    # produção e o proxy do Vite tem em desenvolvimento. O header
+    # Authorization (JWT) é repassado; nenhuma x-api-key é injetada.
+    location /api/ {
+        set $api_upstream ${API_UPSTREAM};
+        rewrite ^/api/(.*)$ /$1 break;
+        proxy_pass $api_upstream;
+
+        proxy_http_version 1.1;
+        proxy_ssl_server_name on;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Real-IP $remote_addr;
+
+        # API fora do ar: responde no formato de erro que o site já entende.
+        error_page 502 503 504 = @api_indisponivel;
+    }
+
+    location @api_indisponivel {
+        default_type application/json;
+        return 502 '{"success":false,"message":"API indisponível no momento."}';
+    }
+
+    # Assets com hash no nome: cache longo. Arquivo inexistente dá 404 de
+    # verdade (não cai no index.html).
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    # O index.html aponta para a versão atual dos assets: sempre revalidar.
+    location = /index.html {
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
+
+    # Checagem de saúde do próprio container (não depende da API).
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 'ok';
+    }
+
+    # Fallback de SPA: o Vue Router usa createWebHistory, então /favoritos,
+    # /evento/:id etc. precisam receber o index.html (como os custom error
+    # responses 403/404 -> /index.html fazem no CloudFront).
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
