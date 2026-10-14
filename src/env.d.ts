@@ -17,6 +17,8 @@ interface ImportMetaEnv {
   readonly VITE_API_KEY?: string;
   /** Client ID Web do Google OAuth. Vazio = botão do Google fica oculto. */
   readonly VITE_GOOGLE_WEB_CLIENT_ID?: string;
+  /** Project ID do Microsoft Clarity. Vazio = Clarity desligado. */
+  readonly VITE_CLARITY_PROJECT_ID?: string;
 }
 
 interface ImportMeta {

@@ -161,6 +161,7 @@ services:
 |----------|------|--------|-----------|
 | `API_UPSTREAM` | runtime (`-e`) | `http://api:3000` | Origem da API: `esquema://host[:porta]`, **sem** barra e sem caminho no final. Recebe `/api/x` como `/x`. |
 | `VITE_GOOGLE_WEB_CLIENT_ID` | build (`--build-arg`) | vazio | Client ID Web do Google. Vazio esconde o botão "Continuar com Google". |
+| `VITE_CLARITY_PROJECT_ID` | build (`--build-arg`) | vazio | Project ID do Microsoft Clarity. Vazio deixa o Clarity desligado. |
 
 Porta interna: **80**. O container não injeta `x-api-key`; para falar com um
 API Gateway use o fluxo de produção (CloudFront) ou o `pnpm dev` com
@@ -180,6 +181,7 @@ lidas apenas por Node.
 | `DEV_API_TARGET` | `vite.config.ts` (dev e preview) | não | `http://localhost:3000` | Alvo do proxy `/api/*` |
 | `DEV_API_KEY` | `vite.config.ts` (dev e preview) | não | vazio | `x-api-key` injetada pelo proxy (só se o alvo for o API Gateway) |
 | `VITE_GOOGLE_WEB_CLIENT_ID` | `src/composables/useGoogleSignIn.ts` | **sim** (público) | vazio | Client ID Web do Google; vazio esconde o botão |
+| `VITE_CLARITY_PROJECT_ID` | `src/main.ts` | **sim** (público) | vazio | Project ID do Microsoft Clarity; vazio deixa o Clarity desligado |
 | `VITE_API_BASE_URL` | `src/services/api.ts` | **sim** | não definida | "Modo direto": o browser chama a API sem o proxy. Não recomendado |
 | `VITE_API_KEY` | `src/services/api.ts` | **sim** (fica exposta) | não definida | `x-api-key` do modo direto. Não recomendado |
 | `AWS_S3_BUCKET` | `scripts/deploy.mjs` | não | — | Bucket S3 do site (obrigatória no deploy) |
@@ -194,6 +196,22 @@ origins" no Google Cloud Console.
 O `scripts/deploy.mjs` lê `.env.deploy`, `.env.local` e `.env`, nessa ordem; o
 primeiro valor não vazio encontrado vale, e o que já estiver no shell tem
 precedência sobre os arquivos.
+
+### Microsoft Clarity
+
+O site usa o [Microsoft Clarity](https://clarity.microsoft.com/) (pacote
+`@microsoft/clarity`) para heatmaps e gravação de sessões. Ele é iniciado uma
+única vez no `src/main.ts` e só quando `VITE_CLARITY_PROJECT_ID` tem valor:
+**sem o ID, o Clarity fica desligado** (nenhum script é carregado). O ID fica
+no painel do Clarity, em Settings → Overview, e é público (vai no bundle).
+
+- **Local:** coloque o ID no `.env.local`.
+- **Deploy:** o ID entra no bundle durante o `pnpm build`, que o
+  `pnpm run deploy` roda na máquina que publica. Ele precisa estar no
+  `.env.local` (ou no shell) dessa máquina; o `.env.deploy` **não** serve,
+  porque só o `scripts/deploy.mjs` lê esse arquivo, depois do build. O
+  `pnpm run deploy:only` publica o `dist/` como está, com o ID do último build.
+- **Docker:** `--build-arg VITE_CLARITY_PROJECT_ID=<id>`.
 
 ---
 
@@ -259,7 +277,7 @@ O `scripts/deploy.mjs`:
 Observações:
 
 - O build de produção também lê o `.env.local` da máquina que publica: é dele
-  que vem o `VITE_GOOGLE_WEB_CLIENT_ID` do bundle.
+  que vêm o `VITE_GOOGLE_WEB_CLIENT_ID` e o `VITE_CLARITY_PROJECT_ID` do bundle.
 - Os arquivos copiados de `public/` (imagens, favicons, `robots.txt`) não têm
   hash no nome, mas também sobem com cache de 1 ano; a invalidação cobre só
   `/` e `/index.html`.

@@ -6,6 +6,8 @@
 # Variáveis de build (--build-arg):
 #   VITE_GOOGLE_WEB_CLIENT_ID  Client ID Web do Google (público, vai no bundle).
 #                              Vazio (padrão) esconde o botão "Continuar com Google".
+#   VITE_CLARITY_PROJECT_ID    Project ID do Microsoft Clarity (público, vai no bundle).
+#                              Vazio (padrão) deixa o Clarity desligado.
 # Variáveis de runtime (-e):
 #   API_UPSTREAM               Para onde o nginx encaminha /api/* (sem o prefixo).
 #                              Padrão: http://api:3000 (serviço "api" do compose).
@@ -28,6 +30,8 @@ COPY . .
 # entra no bundle o que for passado aqui.
 ARG VITE_GOOGLE_WEB_CLIENT_ID=""
 ENV VITE_GOOGLE_WEB_CLIENT_ID=${VITE_GOOGLE_WEB_CLIENT_ID}
+ARG VITE_CLARITY_PROJECT_ID=""
+ENV VITE_CLARITY_PROJECT_ID=${VITE_CLARITY_PROJECT_ID}
 
 # vue-tsc --noEmit + vite build -> dist/
 RUN pnpm build

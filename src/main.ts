@@ -1,3 +1,4 @@
+import Clarity from '@microsoft/clarity';
 import { createPinia } from 'pinia';
 import { createApp } from 'vue';
 
@@ -8,6 +9,16 @@ import { useAuthStore } from './stores/auth.store';
 import { salvarRedirectPendente } from './utils/redirect';
 
 import './styles/global.css';
+
+/**
+ * Microsoft Clarity (heatmaps e gravação de sessão).
+ *
+ * Só liga quando `VITE_CLARITY_PROJECT_ID` tem valor; vazio, nenhum script é
+ * carregado. Fica aqui, no bootstrap, para ser iniciado uma única vez. O ID é
+ * público (vai no bundle), como o Client ID do Google.
+ */
+const CLARITY_PROJECT_ID = import.meta.env.VITE_CLARITY_PROJECT_ID?.trim() ?? '';
+if (CLARITY_PROJECT_ID) Clarity.init(CLARITY_PROJECT_ID);
 
 const app = createApp(App);
 const pinia = createPinia();
