@@ -92,6 +92,7 @@ Ainda na mesma tela, em **Add custom header**:
 | Header name | Value |
 |-------------|-------|
 | `x-api-key` | o valor real da sua API key |
+| `x-client` | `web` — identifica o site nos logs da API (o app manda `app/<versão>`) |
 
 Para descobrir o valor da chave:
 

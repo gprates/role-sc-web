@@ -230,8 +230,9 @@ já existem.
 1. **Fallback de SPA no CloudFront:** custom error responses `403` e `404` →
    `/index.html` com status `200` e TTL de erro 0.
 2. **Origem da API:** segunda origem apontando para o host do API Gateway
-   (HTTPS only, origin path com o stage), com o **Origin Custom Header
-   `x-api-key`** contendo a chave da API.
+   (HTTPS only, origin path com o stage), com os **Origin Custom Headers
+   `x-api-key`** (a chave da API) e **`x-client: web`** (identifica o site
+   nos logs da API).
 3. **Behavior `/api/*`:** todos os métodos HTTP, cache policy
    `CachingDisabled`, origin request policy `AllViewerExceptHostHeader`,
    avaliado antes do `Default (*)`.
