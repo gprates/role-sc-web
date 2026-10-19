@@ -1,6 +1,7 @@
 {
   "name": "role-sc-web",
   "version": "1.0.0",
+  "license": "MIT",
   "description": "Website (Vue 3 + Vite) do TCC Rolê SC — eventos culturais e municipais do litoral catarinense.",
   "private": true,
   "type": "module",

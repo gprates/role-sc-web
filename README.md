@@ -324,3 +324,7 @@ Detalhes de implementação que valem conhecer:
 ## Créditos
 
 Projeto acadêmico (TCC) de Gabriel Prates — 2026.
+
+## Licença
+
+Distribuído sob a licença MIT. Veja o arquivo LICENSE.
