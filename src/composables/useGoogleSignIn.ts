@@ -32,22 +32,23 @@ const WEB_CLIENT_ID = import.meta.env.VITE_GOOGLE_WEB_CLIENT_ID ?? '';
 
 const GSI_SRC = 'https://accounts.google.com/gsi/client';
 
+/** Limites de largura que o GIS aceita para o botão renderizado. */
+const BUTTON_MIN_WIDTH = 200;
+const BUTTON_MAX_WIDTH = 400;
+
 interface GoogleCredentialResponse {
   credential?: string;
 }
 
-/**
- * O objeto que o GIS passa ao `momentListener` do `prompt()`.
- *
- * Todos os métodos são opcionais de propósito: desde a migração do One Tap
- * para FedCM, `isNotDisplayed()` e `isSkippedMoment()` foram descontinuados e
- * chegam a lançar exceção em navegadores com FedCM ligado. Só
- * `isDismissedMoment()` continua confiável — por isso a checagem é defensiva.
- */
-interface GooglePromptMoment {
-  isDismissedMoment?: () => boolean;
-  isNotDisplayed?: () => boolean;
-  isSkippedMoment?: () => boolean;
+interface GoogleButtonConfig {
+  type?: 'standard' | 'icon';
+  theme?: 'outline' | 'filled_blue' | 'filled_black';
+  size?: 'large' | 'medium' | 'small';
+  text?: 'signin_with' | 'signup_with' | 'continue_with' | 'signin';
+  shape?: 'rectangular' | 'pill' | 'circle' | 'square';
+  logo_alignment?: 'left' | 'center';
+  width?: number;
+  locale?: string;
 }
 
 interface GoogleAccountsId {
@@ -55,11 +56,8 @@ interface GoogleAccountsId {
     client_id: string;
     callback: (response: GoogleCredentialResponse) => void;
     auto_select?: boolean;
-    cancel_on_tap_outside?: boolean;
-    use_fedcm_for_prompt?: boolean;
   }) => void;
-  prompt: (momentListener?: (moment: GooglePromptMoment) => void) => void;
-  cancel: () => void;
+  renderButton: (parent: HTMLElement, options: GoogleButtonConfig) => void;
 }
 
 declare global {
@@ -91,6 +89,74 @@ const loadGsiScript = (): Promise<void> => {
   return scriptPromise;
 };
 
+/**
+ * O GIS quer um único `initialize()` por página, com um único callback. Como
+ * o botão aparece em mais de uma tela, o callback fixo só repassa o token para
+ * quem estiver montado no momento.
+ */
+let gsiInitialized = false;
+let credentialHandler: ((idToken: string) => void) | null = null;
+
+/**
+ * Renderiza o botão oficial "Continuar com o Google" dentro de `parent` e
+ * devolve a função de limpeza (chamar no unmount).
+ *
+ * Por que o botão do Google e não um botão nosso chamando `prompt()`: o
+ * `prompt()` é o One Tap, feito para aparecer sozinho, não para ser disparado
+ * por clique. Quando o usuário fecha o One Tap no X, o navegador (FedCM) põe o
+ * site de castigo — 2 h, depois 1 dia, 1 semana, 4 semanas — e nesse período
+ * o prompt nem aparece e o GIS não avisa nada. A promise ficava pendurada, o
+ * spinner girava para sempre, e nem F5 resolvia, porque o castigo é do
+ * navegador. O botão renderizado abre o popup de login do Google, que não tem
+ * castigo; se o usuário fechar o popup, simplesmente nada acontece e a tela
+ * continua como estava — não há estado de carregamento para travar.
+ */
+export const renderGoogleButton = async (
+  parent: HTMLElement,
+  onCredential: (idToken: string) => void,
+): Promise<() => void> => {
+  await loadGsiScript();
+
+  const gsi = window.google?.accounts?.id;
+  if (!gsi) throw new Error('Google Sign-In indisponível.');
+
+  if (!gsiInitialized) {
+    gsi.initialize({
+      client_id: WEB_CLIENT_ID,
+      callback: (response) => {
+        if (response.credential) credentialHandler?.(response.credential);
+      },
+      auto_select: false,
+    });
+    gsiInitialized = true;
+  }
+
+  credentialHandler = onCredential;
+
+  // O GIS só aceita largura em px; acompanhamos a do formulário.
+  const width = Math.min(
+    BUTTON_MAX_WIDTH,
+    Math.max(BUTTON_MIN_WIDTH, Math.floor(parent.clientWidth)),
+  );
+
+  gsi.renderButton(parent, {
+    type: 'standard',
+    theme: 'outline',
+    size: 'large',
+    text: 'continue_with',
+    shape: 'pill',
+    logo_alignment: 'left',
+    width,
+    locale: 'pt-BR',
+  });
+
+  return () => {
+    // Na transição entre login e cadastro as duas telas ficam montadas por um
+    // instante: a que sai não pode desligar o handler da que entrou.
+    if (credentialHandler === onCredential) credentialHandler = null;
+  };
+};
+
 export const useGoogleSignIn = () => {
   const auth = useAuthStore();
   const toast = useToast();
@@ -101,64 +167,24 @@ export const useGoogleSignIn = () => {
   /** True quando não há client ID — a UI esconde o botão nesse caso. */
   const notConfigured = WEB_CLIENT_ID.length === 0;
 
-  const signInWithGoogle = async (): Promise<void> => {
-    if (notConfigured) {
-      toast.info(
-        'Não disponível',
-        'O login com Google ainda não está habilitado neste site.',
-      );
-      return;
-    }
-
+  /**
+   * Troca o `id_token` entregue pelo botão do Google por uma sessão nossa.
+   *
+   * O `loading` só liga aqui, quando o Google JÁ devolveu a credencial — o
+   * popup de escolha de conta não passa por este código, então fechá-lo não
+   * deixa nada pendurado.
+   */
+  const signInWithGoogle = async (idToken: string): Promise<void> => {
     loading.value = true;
     try {
-      await loadGsiScript();
-
-      const gsi = window.google?.accounts?.id;
-      if (!gsi) throw new Error('Google Sign-In indisponível.');
-
-      const idToken = await new Promise<string | null>((resolve) => {
-        let settled = false;
-        const finish = (value: string | null) => {
-          if (settled) return;
-          settled = true;
-          resolve(value);
-        };
-
-        gsi.initialize({
-          client_id: WEB_CLIENT_ID,
-          callback: (response) => finish(response.credential ?? null),
-          auto_select: false,
-          cancel_on_tap_outside: true,
-        });
-
-        /**
-         * O `callback` do GIS só dispara quando o usuário CONCLUI o login. Se
-         * ele fechar o prompt, nada acontece — e sem o momentListener abaixo a
-         * promise nunca resolveria, deixando o botão travado no spinner até o
-         * F5. O listener nos avisa da desistência para liberarmos a UI.
-         */
-        gsi.prompt((moment) => {
-          try {
-            if (moment.isDismissedMoment?.()) finish(null);
-          } catch {
-            // FedCM: os métodos de inspeção podem lançar. Ignorar é seguro —
-            // no pior caso o usuário clica no botão de novo.
-          }
-        });
-      });
-
-      // Usuário fechou o prompt do Google — não é erro, não incomoda com toast.
-      if (!idToken) return;
-
       await auth.signInWithGoogle(idToken);
 
       /**
        * Navegar faz parte do login, e é aqui que ele precisa acontecer: o
-       * clique no botão chama esta função diretamente, então a view não tem
-       * onde encaixar o redirect como faz no fluxo de email/senha. Sem isto, a
-       * sessão era gravada e o usuário continuava parado na tela de login —
-       * só o F5 o levava adiante, empurrado pelo guard de `guestOnly`.
+       * botão do Google entrega o token direto para esta função, então a view
+       * não tem onde encaixar o redirect como faz no fluxo de email/senha. Sem
+       * isto, a sessão era gravada e o usuário continuava parado na tela de
+       * login — só o F5 o levava adiante, empurrado pelo guard de `guestOnly`.
        *
        * `replace` (e não `push`) para o login não voltar no botão "voltar" do
        * navegador; `consumirRedirect` retoma o destino que o guard salvou —

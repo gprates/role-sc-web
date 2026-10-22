@@ -78,7 +78,7 @@ const handleSubmit = async () => {
         <GoogleSignInButton
           :loading="googleLoading"
           :disabled="auth.submitting"
-          @click="signInWithGoogle"
+          @credential="signInWithGoogle"
         />
         <div class="cadastro__divider">
           <span class="cadastro__divider-line" />
