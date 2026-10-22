@@ -1,80 +1,103 @@
 <script setup lang="ts">
-import AppIcon from './AppIcon.vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
+
+import { renderGoogleButton } from '@/composables/useGoogleSignIn';
 
 /**
- * Botão "Continuar com Google".
+ * Botão "Continuar com o Google".
  *
  * Fora da v1 do site: fica oculto enquanto `VITE_GOOGLE_WEB_CLIENT_ID` estiver
- * vazio (ver `useGoogleSignIn`). O visual segue o guideline do Google (fundo
- * branco, texto cinza escuro) com a mesma proporção do botão do app mobile.
+ * vazio (ver `useGoogleSignIn`). Quem desenha o botão é o próprio Google (ver
+ * `renderGoogleButton` para o porquê); aqui só cuidamos do espaço que ele
+ * ocupa, do bloqueio enquanto outro login está em curso e do spinner enquanto
+ * a credencial é trocada pela nossa sessão.
  */
 withDefaults(
   defineProps<{
     loading?: boolean;
     disabled?: boolean;
-    label?: string;
   }>(),
-  { loading: false, disabled: false, label: 'Continuar com Google' },
+  { loading: false, disabled: false },
 );
 
-defineEmits<{ click: [] }>();
+const emit = defineEmits<{ credential: [idToken: string] }>();
+
+const host = ref<HTMLElement | null>(null);
+const failed = ref(false);
+
+let dispose: (() => void) | null = null;
+let unmounted = false;
+
+onMounted(async () => {
+  if (!host.value) return;
+  try {
+    const cleanup = await renderGoogleButton(host.value, (idToken) =>
+      emit('credential', idToken),
+    );
+    // A tela pode ter saído enquanto o script do Google carregava.
+    if (unmounted) cleanup();
+    else dispose = cleanup;
+  } catch {
+    failed.value = true;
+  }
+});
+
+onBeforeUnmount(() => {
+  unmounted = true;
+  dispose?.();
+});
 </script>
 
 <template>
-  <button
-    type="button"
-    class="google-btn"
-    :disabled="disabled || loading"
-    :aria-label="label"
-    :aria-busy="loading"
-    @click="$emit('click')"
-  >
-    <span class="google-btn__icon">
-      <span v-if="loading" class="google-btn__spinner app-spin" aria-hidden="true" />
-      <AppIcon v-else name="logo-google" :size="20" color="#4285F4" />
-    </span>
-    <span class="google-btn__label">{{ label }}</span>
-    <!-- Espelho do ícone, para manter o texto opticamente centralizado. -->
-    <span class="google-btn__icon" aria-hidden="true" />
-  </button>
+  <div class="google-btn" :aria-busy="loading">
+    <div ref="host" class="google-btn__host" />
+    <p v-if="failed" class="google-btn__error t-caption">
+      Não foi possível carregar o login com Google.
+    </p>
+    <!-- O botão vive num iframe do Google, então bloqueamos por cima. -->
+    <div v-if="loading || disabled" class="google-btn__overlay">
+      <span
+        v-if="loading"
+        class="google-btn__spinner app-spin"
+        role="status"
+        aria-label="Entrando com Google"
+      />
+    </div>
+  </div>
 </template>
 
 <style scoped>
 .google-btn {
+  position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  /* Altura do botão "large" do Google: evita o pulo de layout enquanto o
+     script carrega. */
+  min-height: 44px;
+}
+
+.google-btn__host {
+  display: flex;
+  justify-content: center;
   width: 100%;
-  min-height: 52px;
-  padding-inline: var(--space-md);
-  background: #ffffff;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-pill);
-  transition: opacity 0.15s ease;
 }
 
-.google-btn:not(:disabled):hover {
-  opacity: 0.9;
+.google-btn__error {
+  color: var(--text-secondary);
+  text-align: center;
 }
 
-.google-btn:disabled {
-  opacity: 0.5;
-}
-
-.google-btn__icon {
+.google-btn__overlay {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-}
-
-.google-btn__label {
-  flex: 1;
-  text-align: center;
-  font-size: var(--fs-body);
-  line-height: var(--lh-body);
-  font-weight: 600;
-  color: #3c4043;
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  border-radius: var(--radius-pill);
+  cursor: not-allowed;
 }
 
 .google-btn__spinner {

@@ -102,7 +102,7 @@ const handleSubmit = async () => {
         <GoogleSignInButton
           :loading="googleLoading"
           :disabled="auth.submitting"
-          @click="signInWithGoogle"
+          @credential="signInWithGoogle"
         />
       </template>
 
