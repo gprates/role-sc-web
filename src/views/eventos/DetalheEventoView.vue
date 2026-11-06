@@ -73,7 +73,7 @@ const handleShare = async () => {
   const result = await compartilharEvento(evento.value);
   if (result === 'copied') {
     toast.success('Copiado!');
-  } else {
+  } else if (result === 'failed') {
     toast.error('Não foi possível copiar', 'Seu navegador bloqueou o acesso à área de transferência.');
   }
 };
@@ -83,7 +83,7 @@ const infoRows = computed(() => {
   const e = evento.value;
   if (!e) return [];
 
-  const rows: { icon: IconName; label: string; value: string }[] = [
+  const rows: { icon: IconName; label: string; value: string; comoChegar?: string }[] = [
     { icon: 'calendar-outline', label: 'INÍCIO', value: formatLongDate(e.dataInicio) },
   ];
   if (e.dataFim) {
@@ -97,7 +97,15 @@ const infoRows = computed(() => {
     rows.push({ icon: 'time-outline', label: 'HORÁRIO', value: e.horario });
   }
   if (e.local) {
-    rows.push({ icon: 'location-outline', label: 'LOCAL', value: e.local });
+    // O município vai junto na busca: só o nome do local ("Praça Central")
+    // costuma existir em mais de uma cidade do litoral.
+    const query = encodeURIComponent(`${e.local}, ${e.municipio}`);
+    rows.push({
+      icon: 'location-outline',
+      label: 'LOCAL',
+      value: e.local,
+      comoChegar: `https://www.google.com/maps/search/?api=1&query=${query}`,
+    });
   }
   return rows;
 });
@@ -170,6 +178,15 @@ const infoRows = computed(() => {
                 <div>
                   <p class="info-row__label t-micro">{{ row.label }}</p>
                   <p class="info-row__value t-body-bold">{{ row.value }}</p>
+                  <a
+                    v-if="row.comoChegar"
+                    class="info-row__link t-caption-bold"
+                    :href="row.comoChegar"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Como chegar
+                  </a>
                 </div>
               </div>
             </template>
@@ -248,8 +265,12 @@ const infoRows = computed(() => {
 
 <style scoped>
 .detalhe {
-  /* Espaço para a barra de ações fixa. A folga da tab bar já vem do AppLayout. */
-  padding-bottom: 80px;
+  /* Quanto a tab bar cresce além de --tabbar-height no iPhone: o AppLayout
+     troca o padding de baixo dela por `max(--space-xs, safe-area)`. */
+  --tabbar-safe-area: calc(max(var(--space-xs), env(safe-area-inset-bottom)) - var(--space-xs));
+  /* Espaço para a barra de ações fixa. A folga da tab bar já vem do AppLayout,
+     mas sem o safe-area — que aqui empurra a barra de ações para cima. */
+  padding-bottom: calc(80px + var(--tabbar-safe-area));
 }
 
 .detalhe__center {
@@ -393,6 +414,16 @@ const infoRows = computed(() => {
   color: var(--text-primary);
 }
 
+.info-row__link {
+  display: inline-block;
+  margin-top: var(--space-xxs);
+  color: var(--primary);
+}
+
+.info-row__link:hover {
+  text-decoration: underline;
+}
+
 /* ==========================================================================
    Barra de ações
    ========================================================================== */
@@ -400,12 +431,15 @@ const infoRows = computed(() => {
  * No mobile ela fica acima da tab bar flutuante, não colada no rodapé.
  * (No app as duas se sobrepõem — a tab bar flutua por cima da barra de ações.
  * Numa tela de toque grande isso passa; com cursor do mouse, não.)
+ *
+ * No iPhone a tab bar cresce com o safe-area do home indicator, e a barra sobe
+ * o mesmo tanto (`--tabbar-safe-area`, definido em `.detalhe`).
  */
 .actionbar {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: var(--tabbar-height);
+  bottom: calc(var(--tabbar-height) + var(--tabbar-safe-area));
   z-index: var(--z-actionbar);
   background: var(--surface);
   border-top: 1px solid var(--border);

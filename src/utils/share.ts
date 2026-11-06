@@ -38,17 +38,48 @@ export const montarTextoCompartilhamento = (evento: Evento): string =>
     .join('\n\n');
 
 /**
- * Copia a mensagem do evento para a área de transferência.
+ * `shared`/`cancelled` vêm da folha nativa do sistema e não pedem aviso: ela
+ * mesma já foi o retorno. `copied`/`failed` vêm da cópia e pedem um toast.
+ */
+export type ShareResult = 'shared' | 'cancelled' | CopyResult;
+
+/**
+ * Compartilha o evento.
  *
- * Deliberadamente NÃO usa a Web Share API. Ela abriria a folha de aplicativos
- * do sistema, que é o comportamento certo num celular mas atrapalha no
- * desktop — onde ela nem existe no Chrome e no Firefox, e onde o gesto que o
- * usuário realmente quer é colar o texto na conversa que já está aberta.
- * Copiar sempre deixa o resultado igual nas duas pontas.
+ * Em aparelho de toque com a Web Share API, abre a folha de aplicativos do
+ * sistema — no celular é o gesto esperado, e mandar para o WhatsApp sai em um
+ * toque em vez de copiar, trocar de app e colar.
+ *
+ * No resto, copia a mensagem. O `(pointer: coarse)` deixa de fora o desktop,
+ * onde a API existe no Safari do macOS e no Edge/Chrome do Windows: lá a folha
+ * do sistema atrapalha, e o gesto que o usuário quer é colar o texto na
+ * conversa que já está aberta.
+ *
+ * Fecha a folha sem escolher nada → `AbortError` → `cancelled`, sem aviso.
+ * Qualquer outra falha da API cai na cópia, para o usuário não sair sem nada.
  *
  * Fica aqui, e não dentro da tela, porque o mesmo gesto existe em dois lugares
  * — o card da listagem e a barra de ações do detalhe. Com a montagem da
  * mensagem duplicada, a assinatura acabaria divergindo entre os dois.
  */
-export const compartilharEvento = async (evento: Evento): Promise<CopyResult> =>
-  copyToClipboard(montarTextoCompartilhamento(evento));
+export const compartilharEvento = async (evento: Evento): Promise<ShareResult> => {
+  if (typeof navigator.share === 'function' && window.matchMedia('(pointer: coarse)').matches) {
+    try {
+      await navigator.share({
+        title: evento.titulo,
+        // A mensagem inteira, link incluso, vai em `text`, e não há `url`: com
+        // os dois, cada destino decide o que aproveitar, e vários (o WhatsApp
+        // pela folha do Windows, por exemplo) ficam só com o link. Só com
+        // texto, todo app recebe a mesma mensagem da cópia — e o link no meio
+        // dela continua clicável.
+        text: montarTextoCompartilhamento(evento),
+      });
+      return 'shared';
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return 'cancelled';
+      console.warn('[share] navigator.share falhou, copiando o texto', err);
+    }
+  }
+
+  return copyToClipboard(montarTextoCompartilhamento(evento));
+};

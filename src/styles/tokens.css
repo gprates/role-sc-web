@@ -107,8 +107,10 @@
   --content-max: 1180px;
   /* Largura dos cards de formulário (login, cadastro, etc.). */
   --form-max: 440px;
-  /* Altura reservada para a tab bar flutuante no mobile. */
-  --tabbar-height: 76px;
+  /* Altura reservada para a tab bar flutuante no mobile: o pill (92px) mais
+     8px de padding em cima e embaixo. O safe-area do iPhone fica de fora — a
+     tab bar o soma ao padding de baixo, e o que fica acima dela soma também. */
+  --tabbar-height: 108px;
   /* Altura do header fixo no desktop. */
   --header-height: 68px;
 }

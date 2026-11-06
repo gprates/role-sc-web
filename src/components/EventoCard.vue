@@ -59,7 +59,7 @@ const handleShare = async () => {
   const result = await compartilharEvento(props.evento);
   if (result === 'copied') {
     toast.success('Copiado!');
-  } else {
+  } else if (result === 'failed') {
     toast.error('Não foi possível copiar', 'Seu navegador bloqueou o acesso à área de transferência.');
   }
 };

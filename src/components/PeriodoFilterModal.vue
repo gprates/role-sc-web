@@ -220,4 +220,18 @@ const handleApply = () => {
 .date__input::-webkit-date-and-time-value {
   text-align: left;
 }
+
+/* iOS: o controle nativo de data tem largura mínima própria (a da data
+   formatada) e ignora o `min-width: 0` do flex, vazando para fora do campo.
+   Sem a aparência nativa ele encolhe até a largura do label. O @supports
+   restringe ao iOS — `-webkit-touch-callout` só existe no WebKit de lá —
+   para o desktop continuar com o controle como está. */
+@supports (-webkit-touch-callout: none) {
+  .date__input {
+    -webkit-appearance: none;
+    appearance: none;
+    /* Sem a aparência nativa, o campo vazio colapsa para altura zero. */
+    min-height: var(--lh-body);
+  }
+}
 </style>
